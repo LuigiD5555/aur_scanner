@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+LIB_DIR="$SCRIPT_DIR/../lib"
+
+# Load libs
+source "$LIB_DIR/common.sh"
+source "$LIB_DIR/log.sh"
+source "$LIB_DIR/yay.sh"
+source "$LIB_DIR/github.sh"
+source "$LIB_DIR/search.sh"
+source "$LIB_DIR/pkgb.sh"
+source "$LIB_DIR/verify.sh"
+
+# Defaults (can be overridden via env)
+YAY_BIN="${YAY_BIN:-yay}"
+STRICT="${STRICT:-0}"
+VERIFY_ONLY="${VERIFY_ONLY:-0}"
+FAST="${FAST:-0}"
+NO_PROMPT="${NO_PROMPT:-0}"
+
+# Required tools
+require_tools "$YAY_BIN" git sed awk tr grep cut head sort uniq curl tar makepkg sha256sum
+
+main() {
+  local input=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --verify-only) VERIFY_ONLY=1; shift;;
+      --fast)        FAST=1; shift;;
+      --strict)      STRICT=1; shift;;
+      --)            shift; break;;
+      -*)            die "Unknown option: $1" ;;
+      *)             input="$1"; shift; break;;
+    esac
+  done
+  [ -n "$input" ] || die "Usage: $0 [--verify-only] [--fast] [--strict] <aur_pkg | github_url>"
+
+  local pkg
+  pkg="$(resolve_pkg "$input")" || true
+  [ -n "${pkg:-}" ] || die "Unable to resolve an AUR package from input."
+  log_info "Resolved package: $pkg"
+  install_or_verify "$pkg"
+}
+
+main "$@"
+
