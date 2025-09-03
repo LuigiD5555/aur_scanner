@@ -116,7 +116,9 @@ verify_pkgbuild() { # $1=AUR pkg name
 
   # Optional: quick JS summary (if Node parser is available)
   if js_parser_available; then
-    log_info "JS parser summary:"; js_pkgb_parse_summary "$pkgb" | sed 's/^/  /' >&2 || true
+    if [ "${VERBOSE:-0}" = "1" ]; then
+      log_info "JS parser summary:"; js_pkgb_parse_summary "$pkgb" | sed 's/^/  /' >&2 || true
+    fi
     # Connect parser signals into the report
     local js_unpinned=0 js_nonhttps=0 js_redflags=0 js_sources=0
     while IFS='=' read -r k v; do
@@ -149,9 +151,11 @@ verify_pkgbuild() { # $1=AUR pkg name
     else
       report_add "item_js_https" "PASS" "js_https_ok"
     fi
-    # Mostrar lista compacta de fuentes resueltas (limitada)
-    log_info "Sources (resolved):"
-    js_pkgb_sources_compact "$pkgb" 12 | sed 's/^/  /' >&2 || true
+    # Sources compact list (verbose only)
+    if [ "${VERBOSE:-0}" = "1" ]; then
+      log_info "Sources (resolved):"
+      js_pkgb_sources_compact "$pkgb" 12 | sed 's/^/  /' >&2 || true
+    fi
     # Red flags: handled centrally in rule_red_flags (JS-aware). No extra item here.
   fi
 

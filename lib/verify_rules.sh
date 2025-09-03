@@ -20,8 +20,13 @@ rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
   [ -z "$sources" ] && return 0
 
   if ! printf '%s\n' "$sources" | sources_have_only_https; then
-    # Print only offending lines to help debugging, without dumping the full PKGBUILD
-    log_warn "Non-HTTPS sources detected:"; printf '%s\n' "$sources" | awk '!/^https:/' | sed 's/^/  /' >&2
+    if [ "${VERBOSE:-0}" = "1" ]; then
+      log_warn "All sources (marking non-HTTPS):"
+      printf '%s\n' "$sources" | awk '{p=$0; if ($0 !~ /^https:\/\//) p="[non-https] " p; print "  " p}' >&2
+    else
+      # Print only offending lines to help debugging, without dumping the full PKGBUILD
+      log_warn "Non-HTTPS sources detected:"; printf '%s\n' "$sources" | awk '!/^https:/' | sed 's/^/  /' >&2
+    fi
     if [ "$strict" = "1" ]; then
       report_add "item_source_urls" "FAIL" "urls_https_fail"; return 1
     else
@@ -33,7 +38,12 @@ rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
 
   # Domains: ensure ALL sources are allowed
   if ! printf '%s\n' "$sources" | sources_domains_allowed; then
-    log_warn "Sources from non-allowed domains:"; printf '%s\n' "$sources" | grep -Ev "$ALLOWED_DOMAINS" | sed 's/^/  /' >&2 || true
+    if [ "${VERBOSE:-0}" = "1" ]; then
+      log_warn "All sources (marking non-allowed domains):"
+      printf '%s\n' "$sources" | awk -v re="$ALLOWED_DOMAINS" 'BEGIN{IGNORECASE=0} {ok=($0 ~ re); p=$0; if (!ok) p="[non-allowed] " p; print "  " p}' >&2
+    else
+      log_warn "Sources from non-allowed domains:"; printf '%s\n' "$sources" | grep -Ev "$ALLOWED_DOMAINS" | sed 's/^/  /' >&2 || true
+    fi
     if [ "$strict" = "1" ]; then
       report_add "item_allowed_domains" "FAIL" "domains_fail"; return 1
     else
@@ -47,9 +57,17 @@ rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
 rule_checksums() { # $1=pkgb $2=checkout $3=strict $4=fast
   local pkgb="$1" checkout="$2" strict="$3" fast="$4"
   if sed -n 'p' "$pkgb" | has_weak_or_skip; then
-    # Show only the offending lines (weak sums or SKIP entries)
-    log_warn "Weak or skipped checksums found (lines):"
-    awk '/^[[:space:]]*(md5sums|sha1sums)=/ || /SKIP/ {printf "  %d:%s\n", NR, $0}' "$pkgb" >&2 || true
+    if [ "${VERBOSE:-0}" = "1" ]; then
+      log_warn "Checksum arrays (marking weak or SKIP entries):"
+      awk '
+        /^[[:space:]]*(md5sums|sha1sums|sha256sums|sha512sums)=/ {print "  " NR ":" $0; next}
+        /SKIP/ {print "  [SKIP] " NR ":" $0}
+      ' "$pkgb" >&2 || true
+    else
+      # Show only the offending lines (weak sums or SKIP entries)
+      log_warn "Weak or skipped checksums found (lines):"
+      awk '/^[[:space:]]*(md5sums|sha1sums)=/ || /SKIP/ {printf "  %d:%s\n", NR, $0}' "$pkgb" >&2 || true
+    fi
     if [ "$strict" = "1" ]; then
       report_add "item_checksums" "FAIL" "sum_weak_fail"; return 1
     else
