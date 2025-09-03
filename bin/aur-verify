@@ -6,6 +6,7 @@ LIB_DIR="$SCRIPT_DIR/../lib"
 # Load libs
 source "$LIB_DIR/common.sh"
 source "$LIB_DIR/log.sh"
+source "$LIB_DIR/aur_plain.sh"   # AUR RPC/plain helpers needed early for search
 source "$LIB_DIR/yay.sh"
 source "$LIB_DIR/github.sh"
 source "$LIB_DIR/search.sh"
@@ -15,7 +16,6 @@ source "$LIB_DIR/i18n.sh"
 source "$LIB_DIR/report.sh"
 source "$LIB_DIR/verify_rules.sh"
 source "$LIB_DIR/verify.sh"
-source "$LIB_DIR/aur_plain.sh"
 
 # Defaults (can be overridden via env)
 YAY_BIN="${YAY_BIN:-yay}"
@@ -28,8 +28,8 @@ QUIET="${QUIET:-0}"
 # By default, do not print repo metadata in verify-only unless user requests it
 SHOW_METADATA="${SHOW_METADATA:-0}"
 
-# Required tools
-require_tools "$YAY_BIN" git sed awk tr grep cut head sort uniq curl tar makepkg sha256sum
+# Required tools (lazy-require yay only when actually needed)
+require_tools git sed awk tr grep cut head sort uniq curl tar makepkg sha256sum
 
 main() {
   local input="" seen_input=0

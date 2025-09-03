@@ -191,6 +191,7 @@ verify_pkgbuild() { # $1=AUR pkg name
 
   report_print "install"
   log_info "Verification passed. Proceeding to install: $pkg"
+  require_tools "$YAY_BIN"
   "$YAY_BIN" -S "$pkg"
 }
 
@@ -198,7 +199,11 @@ install_or_verify() {
   local pkg="$1"
   if [ "$VERIFY_ONLY" = "1" ] && [ "${SHOW_METADATA:-1}" = "1" ] && [ "${QUIET:-0}" != "1" ]; then
     log_info "VERIFY_ONLY=1 -> Showing metadata:"
-    yay_query_any "$pkg" || true
+    if have_cmd "$YAY_BIN"; then
+      yay_query_any "$pkg" || true
+    else
+      log_warn "Skipping repository metadata (yay not available). Use --metadata after installing yay if needed."
+    fi
   fi
   verify_pkgbuild "$pkg"
 }
