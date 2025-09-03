@@ -89,6 +89,7 @@ chmod +x ./aur_verify_then_yay.sh
 - `--fast` — **Metadata-only** verification (skips `makepkg --verifysource`). ⚠️ With `STRICT=1` it reduces guarantees.  
 - `--verbose` — Print full details for advanced users (show function summaries, expand incident snippets with full context).
 - `--quiet` — Minimal logs (only errors and the final verification summary).
+- `--metadata` — Show repository metadata (`yay -Si`) even in verify-only (hidden by default to keep it fast).
 - `-h`/`--help` — Help.
 
 **Environment variables**:
@@ -106,6 +107,7 @@ Reporting and language:
 - You can force a language with `REPORT_LANG=en` or `REPORT_LANG=es`.
  - `SHOW_FUNCS=1` — Also show `prepare()/build()/package()` summaries; implied by `--verbose`.
  - `QUIET=1` — Same effect as `--quiet`.
+ - `SHOW_METADATA=1` — Show repo metadata in verify-only; same as `--metadata`.
 
 ---
 

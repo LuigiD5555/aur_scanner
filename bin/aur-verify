@@ -25,6 +25,8 @@ FAST="${FAST:-0}"
 NO_PROMPT="${NO_PROMPT:-0}"
 VERBOSE="${VERBOSE:-0}"
 QUIET="${QUIET:-0}"
+# By default, do not print repo metadata in verify-only unless user requests it
+SHOW_METADATA="${SHOW_METADATA:-0}"
 
 # Required tools
 require_tools "$YAY_BIN" git sed awk tr grep cut head sort uniq curl tar makepkg sha256sum
@@ -38,6 +40,7 @@ main() {
       --strict)      STRICT=1; shift; continue;;
       --verbose)     VERBOSE=1; shift; continue;;
       --quiet)       QUIET=1; shift; continue;;
+      --metadata)    SHOW_METADATA=1; shift; continue;;
       --)            shift; # everything after -- is positional
                       if [ $# -gt 0 ]; then
                         if [ "$seen_input" -eq 1 ]; then die "Multiple inputs provided"; fi
