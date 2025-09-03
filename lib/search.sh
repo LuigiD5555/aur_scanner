@@ -115,19 +115,38 @@ resolve_pkg() { # $1=input -> print AUR pkg (stdout only)
   [ "$FAST" = "1" ] && mapfile -t candidates < <(printf '%s\n' "${candidates[@]}" | prefer_fast_variant)
 
   # Exact AUR match check via RPC (faster than yay)
-  for c in "${candidates[@]}"; do
-    local info
-    info="$(aur_plain_rpc_info "$c" 2>/dev/null || true)"
+  # Prefer the base candidate strongly: try cache + live + second live before variants
+  local base rest
+  base="${candidates[0]}"
+  try_exact() {
+    local name="$1" info
+    info="$(aur_plain_rpc_info "$name" 2>/dev/null || true)"
     if printf '%s' "$info" | grep -Eq '"resultcount"[[:space:]]*:[[:space:]]*1' \
-       && printf '%s' "$info" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$c'"'; then
-      printf '%s\n' "$c"; return 0
+       && printf '%s' "$info" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$name'"'; then
+      printf '%s\n' "$name"; return 0
     fi
-    # If cache-based check failed, retry once bypassing cache to avoid false negatives
-    info="$(aur_plain_rpc_info_live "$c" 2>/dev/null || true)"
-    if printf '%s' "$info" | grep -Eq '"resultcount"[[:space:]]*:[[:space:]]*1' \
-       && printf '%s' "$info" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$c'"'; then
-      printf '%s\n' "$c"; return 0
+    info="$(aur_plain_rpc_info_live "$name" 2>/dev/null || true)"
+    if [ -n "$info" ] \
+       && printf '%s' "$info" | grep -Eq '"resultcount"[[:space:]]*:[[:space:]]*1' \
+       && printf '%s' "$info" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$name'"'; then
+      printf '%s\n' "$name"; return 0
     fi
+    return 1
+  }
+  # Try base with extra care (two live attempts if needed)
+  if try_exact "$base"; then return 0; fi
+  # Second live try for base to reduce transient DNS glitches
+  local info2
+  info2="$(aur_plain_rpc_info_live "$base" 2>/dev/null || true)"
+  if [ -n "$info2" ] \
+     && printf '%s' "$info2" | grep -Eq '"resultcount"[[:space:]]*:[[:space:]]*1' \
+     && printf '%s' "$info2" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$base'"'; then
+    printf '%s\n' "$base"; return 0
+  fi
+  # Then try the remaining candidates
+  rest=("${candidates[@]:1}")
+  for c in "${rest[@]}"; do
+    if try_exact "$c"; then return 0; fi
   done
 
   # Build strict regex from best candidate:
