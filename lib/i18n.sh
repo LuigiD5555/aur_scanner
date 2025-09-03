@@ -45,6 +45,7 @@ i18n_translate_msg() { # $1=msg_key
     sum_weak_fail)            [ "$REPORT_LANG" = es ] && echo "Sumas débiles (md5/sha1) o SKIP (STRICT)" || echo "Weak sums (md5/sha1) or SKIP (STRICT)";;
     sum_autofixed_ok)         [ "$REPORT_LANG" = es ] && echo "Sumas débiles reemplazadas por sha256sums" || echo "Weak sums replaced with sha256sums";;
     sum_autofixed_skipfast)   [ "$REPORT_LANG" = es ] && echo "Sumas débiles; FAST=1 impide autocorrección" || echo "Weak sums; FAST=1 skipped auto-upgrade";;
+    sum_autofixed_skipverifyonly) [ "$REPORT_LANG" = es ] && echo "Sumas débiles; VERIFY_ONLY=1 evita descargas" || echo "Weak sums; VERIFY_ONLY=1 avoids downloads";;
     sum_autofixed_fail)       [ "$REPORT_LANG" = es ] && echo "No fue posible generar sha256sums" || echo "Could not generate sha256sums";;
     sum_missing_strict)       [ "$REPORT_LANG" = es ] && echo "Sin sumas fuertes (sha256/sha512) (STRICT)" || echo "No strong sums (sha256/sha512) declared (STRICT)";;
     sum_missing_fast)         [ "$REPORT_LANG" = es ] && echo "Sin sumas fuertes; FAST=1 omitió añadir sha256sums" || echo "No strong sums; FAST=1 skipped adding sha256sums";;

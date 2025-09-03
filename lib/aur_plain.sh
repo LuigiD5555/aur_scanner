@@ -41,19 +41,43 @@ aur_plain_fetch_repo() { # $1=pkg $2=destdir -> prints checkout dir or fails
 }
 
 aur_plain_fetch_plain_files() { # $1=pkg $2=destdir -> prints dir with PKGBUILD/.SRCINFO
-  local pkg="$1" dir="$2/$1"
+  local pkg="$1" dir="$2/$1" cache_dir ttl now
   mkdir -p "$dir"
+
+  # Simple cache to avoid repeated network calls
+  cache_dir="${AUR_CACHE_DIR:-/tmp/aur-plain-cache}"
+  ttl="${AUR_CACHE_TTL_SEC:-3600}" # 1h default
+  now="$(date +%s)"
+  mkdir -p "$cache_dir"
+  if [ -f "$cache_dir/$pkg.PKGBUILD" ]; then
+    local mtime
+    mtime="$(stat -c %Y "$cache_dir/$pkg.PKGBUILD" 2>/dev/null || echo 0)"
+    if [ $((now - mtime)) -lt "$ttl" ]; then
+      cp "$cache_dir/$pkg.PKGBUILD" "$dir/PKGBUILD" 2>/dev/null || true
+      [ -s "$dir/PKGBUILD" ] && { printf '%s\n' "$dir"; return 0; }
+    fi
+  fi
+
+  # Common curl opts
+  local CURL_OPTS
+  CURL_OPTS=(--fail --silent --show-error --location --compressed --connect-timeout 5 --max-time 20)
+
   # First, try the dedicated plain endpoint
-  if ! curl -fsSL "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=$pkg" -o "$dir/PKGBUILD"; then
+  if ! curl "${CURL_OPTS[@]}" "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=$pkg" -o "$dir/PKGBUILD"; then
     return 1
   fi
   if ! is_valid_pkgb "$dir/PKGBUILD"; then
     # Some mirrors/paths might serve the tree page (HTML). Try the ?plain=1 trick.
     log_warn "Downloaded PKGBUILD looked like HTML; retrying with ?plain=1"
-    curl -fsSL "https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=$pkg&plain=1" -o "$dir/PKGBUILD" || return 1
+    curl "${CURL_OPTS[@]}" "https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=$pkg&plain=1" -o "$dir/PKGBUILD" || return 1
     is_valid_pkgb "$dir/PKGBUILD" || return 1
   fi
-  curl -fsSL "https://aur.archlinux.org/cgit/aur.git/plain/.SRCINFO?h=$pkg" -o "$dir/.SRCINFO" || true
+  # Save to cache on success (best-effort)
+  cp "$dir/PKGBUILD" "$cache_dir/$pkg.PKGBUILD" 2>/dev/null || true
+  # .SRCINFO is optional; download only if VERBOSE=1 or STRICT=1
+  if [ "${VERBOSE:-0}" = "1" ] || [ "${STRICT:-0}" = "1" ]; then
+    curl "${CURL_OPTS[@]}" "https://aur.archlinux.org/cgit/aur.git/plain/.SRCINFO?h=$pkg" -o "$dir/.SRCINFO" || true
+  fi
   printf '%s\n' "$dir"
 }
 
