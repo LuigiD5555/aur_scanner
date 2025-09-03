@@ -47,6 +47,9 @@ rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
 rule_checksums() { # $1=pkgb $2=checkout $3=strict $4=fast
   local pkgb="$1" checkout="$2" strict="$3" fast="$4"
   if sed -n 'p' "$pkgb" | has_weak_or_skip; then
+    # Show only the offending lines (weak sums or SKIP entries)
+    log_warn "Weak or skipped checksums found (lines):"
+    awk '/^[[:space:]]*(md5sums|sha1sums)=/ || /SKIP/ {printf "  %d:%s\n", NR, $0}' "$pkgb" >&2 || true
     if [ "$strict" = "1" ]; then
       report_add "item_checksums" "FAIL" "sum_weak_fail"; return 1
     else
@@ -61,6 +64,8 @@ rule_checksums() { # $1=pkgb $2=checkout $3=strict $4=fast
       fi
     fi
   elif ! sed -n 'p' "$pkgb" | has_strong_sums; then
+    # No strong sums present at all — nothing to snippet, but clarify in logs
+    log_warn "No strong checksum arrays declared (sha256sums/sha512sums missing)."
     if [ "$strict" = "1" ]; then
       report_add "item_checksums" "FAIL" "sum_missing_strict"; return 1
     else
