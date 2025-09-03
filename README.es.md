@@ -180,6 +180,41 @@ Idioma:
 
 </details>
 
+<details>
+<summary><strong>Autodetección y obtención (Mermaid)</strong></summary>
+
+```mermaid
+%%{init: {"theme": "forest", "handDrawn": true}}%%
+flowchart TD
+    A[Entrada: URL AUR / URL GitHub / NombrePaquete]
+    B{¿Tipo?}
+    A --> B
+    B -->|URL AUR| C[Extraer <nombre> de la URL]
+    C --> H[Nombre de paquete]
+    B -->|URL GitHub| D[Derivar candidatos desde README/título]
+    D --> E[Validación estricta en AUR vía lib/search.sh]
+    E --> H
+    B -->|NombrePaquete| F{¿Coincidencia exacta en AUR RPC?}
+    F -->|Sí| H
+    F -->|No| G[Búsqueda estricta por nombre con yay -Ss <solo AUR>]
+    G --> H
+
+    H --> I{Obtener PKGBUILD}
+    I -->|Plain OK| J[Snapshot/plain de AUR <sin git>]
+    I -->|Plain falló| K[Clonado git superficial desde AUR]
+    J --> L[Checks estáticos <reglas>]
+    K --> L
+
+    classDef ok fill:#e0ffe0,stroke:#9acd32,stroke-width:1px;
+    classDef alt fill:#e6f0ff,stroke:#4f81bd,stroke-width:1px;
+    classDef warn fill:#fff7cc,stroke:#ffc107,stroke-width:1px;
+    class J ok;
+    class K alt;
+    class L warn;
+```
+
+</details>
+
 ---
 
 ## 🧩 Cómo decide instalar
@@ -287,32 +322,112 @@ Mejoras recientes clave
 </details>
 
 <details>
-<summary><strong>Vista general del flujo</strong></summary>
+<summary><strong>Vista general del flujo (Mermaid)</strong></summary>
 
-```text
-[Entrada: paquete o URL GitHub]
-        │
-        ▼
-   Temp dir (mktemp)
-        │
-        ├─ Si es URL de GitHub → heurística para encontrar el paquete AUR (owner-repo, -bin, -git...)
-        │        │
-        │        └─ Verifica que el PKGBUILD apunte a ese repo
-        │
-        ├─ Obtiene AUR (snapshot/plain; fallback a clonado): https://aur.archlinux.org/<pkg>.git
-        │
-        ├─ Escaneo estático de PKGBUILD (banderas rojas)
-        │
-        ├─ Validación de dominios en source=()
-        │
-        ├─ makepkg --verifysource
-        │        └─ Si falla por sumas débiles (y STRICT=0): auto-regenera sha256sums
-        │
-        ├─ (STRICT) Resumen prepare/build/package
-        │
-        ├─ --verify-only ? → salir con código 0
-        │
-        └─ Instala con yay -S --noconfirm
+```mermaid
+%%{init: {"theme": "forest", "handDrawn": true}}%%
+sequenceDiagram
+    participant Usuario as Usuario
+    participant CLI as CLI bin/aur-verify
+    participant GitHub as GitHub lib/github.sh
+    participant Search as Resolver AUR lib/search.sh
+    participant Plain as AUR Plain/RPC lib/aur_plain.sh
+    participant Verify as Verificador lib/verify.sh
+    participant Rules as Reglas lib/verify_rules.sh
+    participant PKGB as PKGB Utils lib/pkgb.sh
+    participant Report as Reporte lib/report.sh + lib/i18n.sh
+    participant Makepkg as makepkg
+    participant Yay as yay
+
+    Usuario->>CLI: Ejecutar bin/aur-verify <input>
+
+    %% Detección de entrada
+    rect rgba(200, 200, 255, 0.35)
+    CLI->>CLI: Detectar tipo de entrada
+    alt URL AUR
+        CLI->>Plain: Extraer nombre y consultar RPC v5
+        Plain-->>CLI: pkg
+    else URL GitHub
+        CLI->>GitHub: Derivar candidatos titulo/README
+        GitHub-->>CLI: Lista de candidatos
+        CLI->>Search: Validar en AUR estricto por nombre
+        Search-->>CLI: pkg
+    else NombrePaquete
+        CLI->>Plain: RPC v5 info busqueda exacta
+        alt Existe exacto
+            Plain-->>CLI: pkg
+        else No exacto
+            CLI->>Search: Busqueda estricta yay -Ss solo AUR
+            Search-->>CLI: pkg
+        end
+    end
+    end
+
+    %% Obtención de PKGBUILD
+    rect rgba(200, 255, 200, 0.35)
+    CLI->>Verify: verify_pkgbuild pkg
+    Verify->>Plain: Descargar snapshot/plain PKGBUILD y .SRCINFO
+    alt Descarga OK
+        Plain-->>Verify: Ruta temporal con PKGBUILD
+    else Fallback a git
+        Verify->>Plain: Intento fallido snapshot/plain
+        Verify->>CLI: git clone desde AUR
+        CLI-->>Verify: Repo clonado con PKGBUILD
+    end
+    Note over Verify: Mostrar resumen de funciones PREPARE / BUILD / PACKAGE
+    end
+
+    %% Verificación estática reglas atómicas
+    rect rgba(255, 255, 200, 0.35)
+    Verify->>Rules: rule_vcs_pinning PKGBUILD
+    Rules->>PKGB: pkgb_check_vcs_pinning
+    PKGB-->>Rules: Resultado
+    Rules-->>Report: report_add item_vcs_pinning
+
+    Verify->>Rules: rule_sources PKGBUILD
+    Rules->>PKGB: list_sources + validaciones HTTPS y whitelist
+    PKGB-->>Rules: Resultado
+    Rules-->>Report: report_add item_source_urls / item_allowed_domains
+
+    Verify->>Rules: rule_checksums PKGBUILD checkout
+    Rules->>PKGB: has_weak_or_skip / has_strong_sums
+    opt Autocorreccion permitida
+        Rules->>Verify: rewrite_sums_to_sha256
+    end
+    Rules-->>Report: report_add item_checksums
+
+    Verify->>Rules: rule_red_flags PKGBUILD
+    Rules->>PKGB: scan_red_flags
+    PKGB-->>Rules: Coincidencias
+    Rules-->>Report: report_add item_red_flags
+    end
+
+    %% Verificación profunda opcional
+    rect rgba(255, 220, 200, 0.35)
+    alt VERIFY-ONLY sin DEEP
+        Verify->>Rules: rule_verifysource mode verify-only
+        Rules-->>Report: SKIP solo verificacion
+    else FAST
+        Verify->>Rules: rule_verifysource mode fast
+        Rules-->>Report: SKIP --fast
+    else FULL
+        Verify->>Makepkg: makepkg --verifysource sin compilar
+        Makepkg-->>Verify: OK / FALLO
+        Verify->>Rules: rule_verifysource mode full
+        Rules-->>Report: PASS / WARN / FAIL
+    end
+    end
+
+    %% Reporte e instalación
+    rect rgba(230, 200, 255, 0.35)
+    Verify->>Report: report_print mode
+    alt OVERALL OK u OK con advertencias y no verify-only
+        CLI->>Yay: yay -S pkg
+        Yay-->>CLI: Instalacion completada
+    else OVERALL FAIL o verify-only
+        CLI-->>Usuario: No instalar / Solo verificacion
+    end
+    end
 ```
 
 </details>
@@ -320,25 +435,25 @@ Mejoras recientes clave
 <details>
 <summary><strong>Módulos clave (alto nivel)</strong></summary>
 
-- **`lib/github.sh`**: parseo de URL, título de README, candidatos en kebab-case, fallback seguro de repo.
-- **`lib/search.sh`**: búsqueda estricta basada en `yay -Ss`, filtrada a AUR, orden de candidatos, resolvedor.
-- **`lib/pkgb.sh`**: análisis de `source`, políticas de checksums, resúmenes de funciones, banderas rojas.
-- **`lib/verify.sh`**: clonado, verificación con makepkg, reescritura opcional de checksums, ruta de instalación.
-- **`lib/yay.sh`**: extracción de campos de `yay -Si`, metadatos de repositorio/origen.
+- `lib/github.sh`: parseo de URL, título de README, candidatos en kebab-case, fallback seguro de repo.
+- `lib/search.sh`: búsqueda estricta basada en `yay -Ss`, filtrada a AUR, orden de candidatos, resolvedor.
+- `lib/pkgb.sh`: análisis de fuentes, políticas de checksums, resúmenes de funciones, banderas rojas.
+- `lib/verify.sh`: orquesta la verificación, usa reglas atómicas y muestra un resumen localizado.
+- `lib/verify_rules.sh`: reglas atómicas (VCS pinning, fuentes, checksums, banderas rojas, verifysource).
+- `lib/aur_plain.sh`: fetchers de snapshot/plain y helpers de AUR RPC v5.
+- `lib/i18n.sh`: detección de idioma y traducciones (en/es).
+- `lib/report.sh`: ensamblado del reporte final (usa i18n).
+- `lib/yay.sh`: extracción de campos de `yay -Si`, metadatos de repositorio/origen.
 
 </details>
 
 <details>
 <summary><strong>Detalles técnicos (para curiosos)</strong></summary>
 
-- **Reescritura de checksums**: descarga fuentes declaradas, calcula `sha256` y genera un bloque `sha256sums=()` en `PKGBUILD` reemplazando `sha1sums` o entradas `SKIP`.
-
-### Detalles técnicos (para curiosos)
-
-- **Reescritura de checksums**: descarga fuentes declaradas, calcula `sha256` y genera un bloque `sha256sums=()` en `PKGBUILD` reemplazando `sha1sums` o entradas `SKIP`.
-- **Resumen de funciones**: imprime las primeras líneas de `prepare()`, `build()`, `package()` para inspección rápida antes de instalar (sólo con `STRICT=1` y sin `--fast`).
-- **Mensajes**: prefijos `[INFO]`, `[WARN]`, `[ERROR]` para claridad en logs.
-- **Salida**: cualquier fallo detiene el proceso con código ≠ 0.
+- Reescritura de checksums: descarga fuentes declaradas, calcula `sha256` y genera un bloque `sha256sums=()` en `PKGBUILD` reemplazando `sha1sums` o entradas `SKIP`.
+- Resumen de funciones: imprime las primeras líneas de `prepare()`, `build()`, `package()` para inspección rápida antes de instalar (solo con `STRICT=1` y sin `--fast`).
+- Mensajes: prefijos `[INFO]`, `[WARN]`, `[ERROR]` para claridad en logs.
+- Salida: cualquier fallo detiene el proceso con código ≠ 0.
 
 </details>
 

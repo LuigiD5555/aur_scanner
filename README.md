@@ -287,32 +287,147 @@ Key recent improvements
 </details>
 
 <details>
-<summary><strong>Overview of the flow</strong></summary>
+<summary><strong>Overview of the flow (Mermaid)</strong></summary>
 
-```text
-[Input: package or GitHub URL]
-        │
-        ▼
-   Temp dir (mktemp)
-        │
-        ├─ If GitHub URL → heuristic to find AUR package (owner-repo, -bin, -git...)
-        │        │
-        │        └─ Verify that PKGBUILD points to that repo
-        │
-        ├─ Fetch AUR (snapshot/plain; fallback to clone): https://aur.archlinux.org/<pkg>.git
-        │
-        ├─ Static PKGBUILD scan (red flags)
-        │
-        ├─ Domain validation in source=()
-        │
-        ├─ makepkg --verifysource
-        │        └─ If fails due to weak sums (and STRICT=0): auto-regenerate sha256sums
-        │
-        ├─ (STRICT) prepare/build/package summary
-        │
-        ├─ --verify-only ? → exit 0
-        │
-        └─ Install with yay -S --noconfirm
+```mermaid
+%%{init: {"theme": "forest", "handDrawn": true}}%%
+sequenceDiagram
+    participant User as User
+    participant CLI as CLI bin/aur-verify
+    participant GitHub as GitHub lib/github.sh
+    participant Search as AUR Resolver lib/search.sh
+    participant Plain as AUR Plain/RPC lib/aur_plain.sh
+    participant Verify as Verifier lib/verify.sh
+    participant Rules as Rules lib/verify_rules.sh
+    participant PKGB as PKGB Utils lib/pkgb.sh
+    participant Report as Report lib/report.sh + lib/i18n.sh
+    participant Makepkg as makepkg
+    participant Yay as yay
+
+    User->>CLI: Run bin/aur-verify <input>
+
+    %% Input detection
+    rect rgba(200, 200, 255, 0.35)
+    CLI->>CLI: Detect input type
+    alt AUR URL
+        CLI->>Plain: Extract name and query RPC v5
+        Plain-->>CLI: pkg
+    else GitHub URL
+        CLI->>GitHub: Derive candidates title/README
+        GitHub-->>CLI: Candidate list
+        CLI->>Search: Validate on AUR name‑strict
+        Search-->>CLI: pkg
+    else PackageName
+        CLI->>Plain: RPC v5 info exact match
+        alt Exact match
+            Plain-->>CLI: pkg
+        else No exact match
+            CLI->>Search: Strict search yay -Ss AUR only
+            Search-->>CLI: pkg
+        end
+    end
+    end
+
+    %% Fetch PKGBUILD
+    rect rgba(200, 255, 200, 0.35)
+    CLI->>Verify: verify_pkgbuild pkg
+    Verify->>Plain: Download snapshot/plain PKGBUILD and .SRCINFO
+    alt Plain OK
+        Plain-->>Verify: Temp path with PKGBUILD
+    else Fallback to git
+        Verify->>Plain: Plain snapshot failed
+        Verify->>CLI: git clone from AUR
+        CLI-->>Verify: Cloned repo with PKGBUILD
+    end
+    Note over Verify: Show PREPARE / BUILD / PACKAGE summaries
+    end
+
+    %% Static verification atomic rules
+    rect rgba(255, 255, 200, 0.35)
+    Verify->>Rules: rule_vcs_pinning PKGBUILD
+    Rules->>PKGB: pkgb_check_vcs_pinning
+    PKGB-->>Rules: Result
+    Rules-->>Report: report_add item_vcs_pinning
+
+    Verify->>Rules: rule_sources PKGBUILD
+    Rules->>PKGB: list_sources + HTTPS and whitelist checks
+    PKGB-->>Rules: Result
+    Rules-->>Report: report_add item_source_urls / item_allowed_domains
+
+    Verify->>Rules: rule_checksums PKGBUILD checkout
+    Rules->>PKGB: has_weak_or_skip / has_strong_sums
+    opt Auto‑fix allowed
+        Rules->>Verify: rewrite_sums_to_sha256
+    end
+    Rules-->>Report: report_add item_checksums
+
+    Verify->>Rules: rule_red_flags PKGBUILD
+    Rules->>PKGB: scan_red_flags
+    PKGB-->>Rules: Matches
+    Rules-->>Report: report_add item_red_flags
+    end
+
+    %% Deep verification optional
+    rect rgba(255, 220, 200, 0.35)
+    alt VERIFY-ONLY without DEEP
+        Verify->>Rules: rule_verifysource mode verify-only
+        Rules-->>Report: SKIP verify‑only
+    else FAST
+        Verify->>Rules: rule_verifysource mode fast
+        Rules-->>Report: SKIP --fast
+    else FULL
+        Verify->>Makepkg: makepkg --verifysource no build
+        Makepkg-->>Verify: OK / FAIL
+        Verify->>Rules: rule_verifysource mode full
+        Rules-->>Report: PASS / WARN / FAIL
+    end
+    end
+
+    %% Report and install
+    rect rgba(230, 200, 255, 0.35)
+    Verify->>Report: report_print mode
+    alt OVERALL OK or OK with warnings and not verify-only
+        CLI->>Yay: yay -S pkg
+        Yay-->>CLI: Installation completed
+    else OVERALL FAIL or verify-only
+        CLI-->>User: Do not install / Verification only
+    end
+    end
+```
+
+</details>
+
+<details>
+<summary><strong>Autodetection and Fetch (Mermaid)</strong></summary>
+
+```mermaid
+%%{init: {"theme": "forest", "handDrawn": true}}%%
+flowchart TD
+    A[Input: AUR URL / GitHub URL / PackageName]
+    B{Type?}
+    A --> B
+    B -->|AUR URL| C[Extract <name> from URL]
+    C --> H[Package name]
+    B -->|GitHub URL| D[Derive candidates from README/title]
+    D --> E[Strict AUR validation via lib/search.sh]
+    E --> H
+    B -->|Name| F{AUR RPC exact match?}
+    F -->|Yes| H
+    F -->|No| G[Strict name search via yay -Ss <AUR only>]
+    G --> H
+
+    H --> I{Fetch PKGBUILD}
+    I -->|Plain OK| J[AUR snapshot/plain <no git>]
+    I -->|Plain failed| K[Shallow git clone from AUR]
+    J --> L[Static checks <rules>]
+    K --> L
+
+    classDef ok fill:#e0ffe0,stroke:#9acd32,stroke-width:1px;
+    classDef alt fill:#e6f0ff,stroke:#4f81bd,stroke-width:1px;
+    classDef warn fill:#fff7cc,stroke:#ffc107,stroke-width:1px;
+    class J ok;
+    class K alt;
+    class L warn;
 ```
 
 </details>
@@ -320,11 +435,15 @@ Key recent improvements
 <details>
 <summary><strong>Key modules (high level)</strong></summary>
 
-- **`lib/github.sh`**: URL parsing, README title, kebab-case candidates, safe repo fallback.
-- **`lib/search.sh`**: strict `yay -Ss` name search filtered to AUR, candidate ordering, resolver.
-- **`lib/pkgb.sh`**: source scanning, checksum policy helpers, function summaries, red flags.
-- **`lib/verify.sh`**: clone, makepkg verification, optional checksum rewrite, install path.
-- **`lib/yay.sh`**: `yay -Si` field extraction, repo/source metadata.
+- `lib/github.sh`: URL parsing, README title, kebab-case candidates, safe repo fallback.
+- `lib/search.sh`: strict `yay -Ss` name search filtered to AUR, candidate ordering, resolver.
+- `lib/pkgb.sh`: source scanning, checksum policy helpers, function summaries, red flags.
+- `lib/verify.sh`: orchestrates verification, uses atomic rules, prints a localized summary.
+- `lib/verify_rules.sh`: atomic rules (VCS pinning, sources, checksums, red flags, verifysource).
+- `lib/aur_plain.sh`: AUR snapshot/plain fetchers and AUR RPC v5 helpers.
+- `lib/i18n.sh`: language detection and translations (en/es).
+- `lib/report.sh`: final summary report assembly (uses i18n).
+- `lib/yay.sh`: `yay -Si` field extraction, repo/source metadata.
 
 </details>
 
