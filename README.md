@@ -105,6 +105,43 @@ Reporting and language:
 
 ---
 
+## 🧩 Node CLI: pkgb-parse (optional)
+
+The project ships a modular Node.js CLI to parse PKGBUILD files quickly and feed extra signals into the Bash reports. It is optional: if Node is unavailable, Bash uses grep/awk heuristics.
+
+- Entry point: `bin/pkgb-parse`
+- Modules: `lib/js_node/{analysis,utils,outputs,patterns,colors}.js`
+
+Examples:
+
+```bash
+# Parse from file
+node bin/pkgb-parse --file ./PKGBUILD --summary
+
+# Parse directly from AUR plain URL
+node bin/pkgb-parse --url "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=zotero"
+
+# JSON for tooling
+node bin/pkgb-parse --file ./PKGBUILD --json
+```
+
+<details>
+<summary><strong>CLI options (details)</strong></summary>
+
+- `--file PATH`: Parse PKGBUILD from a local file
+- `--url URL`: Fetch and parse PKGBUILD from URL
+- `--summary`: One‑line summary (name, version, counts)
+- `--json`: Structured JSON output
+- `--signals`: Key=value pairs for Bash integration
+- `--redflags-lines`: Red flags as `line<TAB>content`
+- `--sources-compact [--limit N]`: Compact sources list, optionally limited
+
+Tip: If you pass an AUR link that is not the plain endpoint, the CLI will suggest the correct `.../plain/PKGBUILD?h=<pkg>` form and prints “Fetching from AUR (respectfully)...”.
+
+</details>
+
+---
+
 ## ✅ What it checks
 
 ### 1) Red flags in `PKGBUILD` (static)
@@ -444,16 +481,17 @@ flowchart TD
 - `lib/i18n.sh`: language detection and translations (en/es).
 - `lib/report.sh`: final summary report assembly (uses i18n).
 - `lib/yay.sh`: `yay -Si` field extraction, repo/source metadata.
+ - `bin/pkgb-parse` + `lib/js_node/*`: Optional Node.js static parser used by Bash when available.
 
 </details>
 
 <details>
 <summary><strong>Technical details (for the curious)</strong></summary>
 
-- **Checksum rewriting**: downloads declared sources, calculates `sha256`, and generates a `sha256sums=()` block in `PKGBUILD` replacing `sha1sums` or `SKIP`.  
-- **Function summaries**: prints first lines of `prepare()`, `build()`, `package()` for quick inspection before installing (only with `STRICT=1` and no `--fast`).  
-- **Messages**: `[INFO]`, `[WARN]`, `[ERROR]` prefixes for clear logs.  
-- **Exit codes**: any failure stops the process with non-zero code.
+- Checksum rewriting: downloads declared sources, computes `sha256`, and rewrites `sha256sums=()` replacing weak sums (when allowed).  
+- Function summaries: prints first lines of `prepare()`, `build()`, `package()` for quick inspection (with `STRICT=1`, unless `--fast`).  
+- Error diagnostics: explicit paths/modes in “PKGBUILD not found …” and actionable hint when `FAST=1` blocks plain fetch fallback.  
+- Messages: `[INFO]`, `[WARN]`, `[ERROR]` prefixes for clarity; non‑zero exit on failures.
 
 </details>
 
@@ -482,6 +520,8 @@ flowchart TD
 - **“FAST: would require a full AUR build”**  
 
   Try a `-bin` flavor or run without `--fast` (accepting compilation).
+\- **“PKGBUILD not found at '<path>/PKGBUILD' (mode=..., pkg=...)”**  
+  Run without `--fast` to allow snapshot/git fallback. If it still fails, please open an issue and include the path shown.
 
 ---
 

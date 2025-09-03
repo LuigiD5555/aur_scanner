@@ -105,6 +105,43 @@ Reporte e idioma:
 
 ---
 
+## 🧩 CLI Node: pkgb-parse (opcional)
+
+El proyecto incluye un CLI modular en Node.js para parsear PKGBUILD con rapidez y aportar señales adicionales al reporte en Bash. Es opcional: si no hay Node, Bash usa heurísticas con grep/awk.
+
+- Punto de entrada: `bin/pkgb-parse`
+- Módulos: `lib/js_node/{analysis,utils,outputs,patterns,colors}.js`
+
+Ejemplos:
+
+```bash
+# Parsear desde archivo
+node bin/pkgb-parse --file ./PKGBUILD --summary
+
+# Parsear directo desde la URL plain de AUR
+node bin/pkgb-parse --url "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=zotero"
+
+# JSON para integraciones
+node bin/pkgb-parse --file ./PKGBUILD --json
+```
+
+<details>
+<summary><strong>Opciones del CLI (detalles)</strong></summary>
+
+- `--file PATH`: Parsear PKGBUILD desde archivo local
+- `--url URL`: Descargar y parsear PKGBUILD desde URL
+- `--summary`: Resumen en una línea (nombre, versión, conteos)
+- `--json`: Salida JSON estructurada
+- `--signals`: Pares clave=valor para Bash
+- `--redflags-lines`: Banderas rojas como `linea<TAB>contenido`
+- `--sources-compact [--limit N]`: Lista compacta de fuentes, opcionalmente limitada
+
+Tip: Si pasas un enlace de AUR que no es el endpoint “plain”, el CLI sugerirá la forma correcta `.../plain/PKGBUILD?h=<pkg>` y mostrará “Fetching from AUR (respectfully)...”.
+
+</details>
+
+---
+
 ## ✅ Qué comprueba
 
 ### 1) Banderas rojas en `PKGBUILD` (estático)
@@ -444,16 +481,17 @@ sequenceDiagram
 - `lib/i18n.sh`: detección de idioma y traducciones (en/es).
 - `lib/report.sh`: ensamblado del reporte final (usa i18n).
 - `lib/yay.sh`: extracción de campos de `yay -Si`, metadatos de repositorio/origen.
+ - `bin/pkgb-parse` + `lib/js_node/*`: Parser estático opcional en Node.js utilizado por Bash si está disponible.
 
 </details>
 
 <details>
 <summary><strong>Detalles técnicos (para curiosos)</strong></summary>
 
-- Reescritura de checksums: descarga fuentes declaradas, calcula `sha256` y genera un bloque `sha256sums=()` en `PKGBUILD` reemplazando `sha1sums` o entradas `SKIP`.
-- Resumen de funciones: imprime las primeras líneas de `prepare()`, `build()`, `package()` para inspección rápida antes de instalar (solo con `STRICT=1` y sin `--fast`).
-- Mensajes: prefijos `[INFO]`, `[WARN]`, `[ERROR]` para claridad en logs.
-- Salida: cualquier fallo detiene el proceso con código ≠ 0.
+- Reescritura de checksums: descarga fuentes declaradas, calcula `sha256` y reescribe `sha256sums=()` reemplazando sumas débiles (cuando se permite).  
+- Resumen de funciones: imprime primeras líneas de `prepare()`, `build()`, `package()` para inspección rápida (con `STRICT=1`, salvo `--fast`).  
+- Diagnóstico de errores: rutas y modos explícitos en “PKGBUILD not found …” y sugerencia accionable cuando `FAST=1` bloquea el fallback de plain.  
+- Mensajes: prefijos `[INFO]`, `[WARN]`, `[ERROR]`; salida con código ≠ 0 ante fallos.
 
 </details>
 
@@ -480,6 +518,8 @@ sequenceDiagram
 - **“FAST: would require a full AUR build”**  
 
   Intenta un sabor `-bin` o ejecuta sin `--fast` (aceptando compilar).
+\- **“PKGBUILD not found at '<path>/PKGBUILD' (mode=..., pkg=...)”**  
+  Ejecuta sin `--fast` para permitir el fallback a snapshot/git. Si aún falla, abre un issue incluyendo la ruta mostrada.
 
 ---
 
