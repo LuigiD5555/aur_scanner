@@ -380,7 +380,7 @@ sequenceDiagram
         Verify->>CLI: git clone from AUR
         CLI-->>Verify: Cloned repo with PKGBUILD
     end
-    Note over Verify: Show PREPARE / BUILD / PACKAGE summaries
+    Note over Verify: Show PREPARE/BUILD/PACKAGE summaries (Verbose or SHOW_FUNCS)
     end
 
     %% Static verification atomic rules
@@ -394,6 +394,7 @@ sequenceDiagram
     Rules->>PKGB: list_sources + HTTPS and whitelist checks
     PKGB-->>Rules: Result
     Rules-->>Report: report_add item_source_urls / item_allowed_domains
+    Note over Rules,Report: Default → only offending lines; Verbose → show all sources and mark offenders
 
     Verify->>Rules: rule_checksums PKGBUILD checkout
     Rules->>PKGB: has_weak_or_skip / has_strong_sums
@@ -401,6 +402,7 @@ sequenceDiagram
         Rules->>Verify: rewrite_sums_to_sha256
     end
     Rules-->>Report: report_add item_checksums
+    Note over Rules,Report: Default → only weak/SKIP lines; Verbose → show all checksum arrays and mark weak/SKIP
 
     Verify->>Rules: rule_red_flags PKGBUILD
     Rules->>PKGB: scan_red_flags
@@ -433,6 +435,7 @@ sequenceDiagram
     else OVERALL FAIL or verify-only
         CLI-->>User: Do not install / Verification only
     end
+    Note over CLI,Report: Quiet → suppress info/warn logs; summary remains visible
     end
 ```
 

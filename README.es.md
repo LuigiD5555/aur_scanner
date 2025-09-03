@@ -429,6 +429,7 @@ sequenceDiagram
     Rules->>PKGB: list_sources + validaciones HTTPS y whitelist
     PKGB-->>Rules: Resultado
     Rules-->>Report: report_add item_source_urls / item_allowed_domains
+    Note over Rules,Report: Por defecto → solo líneas problemáticas; Verbose → todas las fuentes con marca
 
     Verify->>Rules: rule_checksums PKGBUILD checkout
     Rules->>PKGB: has_weak_or_skip / has_strong_sums
@@ -436,6 +437,7 @@ sequenceDiagram
         Rules->>Verify: rewrite_sums_to_sha256
     end
     Rules-->>Report: report_add item_checksums
+    Note over Rules,Report: Por defecto → solo líneas débiles/SKIP; Verbose → arrays completas con marca
 
     Verify->>Rules: rule_red_flags PKGBUILD
     Rules->>PKGB: scan_red_flags
@@ -468,6 +470,7 @@ sequenceDiagram
     else OVERALL FAIL o verify-only
         CLI-->>Usuario: No instalar / Solo verificacion
     end
+    Note over CLI,Report: Quiet → suprime info/warn; el resumen sigue visible
     end
 ```
 
