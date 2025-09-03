@@ -74,8 +74,8 @@ main() {
   log_info "Resolved package: $pkg"
   # Verbose implies showing function summaries and detailed logs
   if [ "$VERBOSE" = "1" ]; then SHOW_FUNCS=1; SHOW_METADATA=1; QUIET=0; fi
-  # Quiet overrides verbose/show funcs
-  if [ "$QUIET" = "1" ]; then SHOW_FUNCS=0; VERBOSE=0; fi
+  # Quiet overrides verbose/show funcs/metadata
+  if [ "$QUIET" = "1" ]; then SHOW_FUNCS=0; SHOW_METADATA=0; VERBOSE=0; fi
   install_or_verify "$pkg"
 }
 

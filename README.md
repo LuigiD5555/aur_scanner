@@ -88,7 +88,7 @@ chmod +x ./aur_verify_then_yay.sh
 - `--verify-only` — Run static checks and exit without installing (no downloads); set `DEEP=1` to include `makepkg --verifysource`.  
 - `--fast` — **Metadata-only** verification (skips `makepkg --verifysource`). ⚠️ With `STRICT=1` it reduces guarantees.  
 - `--verbose` — Print full details for advanced users (show function summaries, repository metadata, and expand incident snippets with full context).
-- `--quiet` — Minimal logs (only errors and the final verification summary).
+- `--quiet` — Minimal logs (only errors and the final verification summary). Overrides `--metadata`.
 - `--metadata` — Show repository metadata (`yay -Si`) even in verify-only (hidden by default to keep it fast).
 - `-h`/`--help` — Help.
 
