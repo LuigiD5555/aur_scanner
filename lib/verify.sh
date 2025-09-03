@@ -108,8 +108,11 @@ verify_pkgbuild() { # $1=AUR pkg name
       ;;
   esac
 
-  log_info "Showing PKGBUILD function summaries (prepare/build/package)…"
-  print_func_summaries "$pkgb" | sed 's/^/  /' >&2
+  # Only show PKGBUILD function snippets when explicitly requested
+  if [ "${SHOW_FUNCS:-0}" = "1" ]; then
+    log_info "Showing PKGBUILD function summaries (prepare/build/package)…"
+    print_func_summaries "$pkgb" | sed 's/^/  /' >&2
+  fi
 
   # Optional: quick JS summary (if Node parser is available)
   if js_parser_available; then

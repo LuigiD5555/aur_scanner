@@ -20,6 +20,8 @@ rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
   [ -z "$sources" ] && return 0
 
   if ! printf '%s\n' "$sources" | sources_have_only_https; then
+    # Print only offending lines to help debugging, without dumping the full PKGBUILD
+    log_warn "Non-HTTPS sources detected:"; printf '%s\n' "$sources" | awk '!/^https:/' | sed 's/^/  /' >&2
     if [ "$strict" = "1" ]; then
       report_add "item_source_urls" "FAIL" "urls_https_fail"; return 1
     else
@@ -29,7 +31,9 @@ rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
     report_add "item_source_urls" "PASS" "urls_https_ok"
   fi
 
-  if ! printf '%s\n' "$sources" | grep -E "$ALLOWED_DOMAINS" >/dev/null; then
+  # Domains: ensure ALL sources are allowed
+  if ! printf '%s\n' "$sources" | sources_domains_allowed; then
+    log_warn "Sources from non-allowed domains:"; printf '%s\n' "$sources" | grep -Ev "$ALLOWED_DOMAINS" | sed 's/^/  /' >&2 || true
     if [ "$strict" = "1" ]; then
       report_add "item_allowed_domains" "FAIL" "domains_fail"; return 1
     else
