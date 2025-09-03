@@ -24,6 +24,7 @@ VERIFY_ONLY="${VERIFY_ONLY:-0}"
 FAST="${FAST:-0}"
 NO_PROMPT="${NO_PROMPT:-0}"
 VERBOSE="${VERBOSE:-0}"
+QUIET="${QUIET:-0}"
 
 # Required tools
 require_tools "$YAY_BIN" git sed awk tr grep cut head sort uniq curl tar makepkg sha256sum
@@ -36,6 +37,7 @@ main() {
       --fast)        FAST=1; shift; continue;;
       --strict)      STRICT=1; shift; continue;;
       --verbose)     VERBOSE=1; shift; continue;;
+      --quiet)       QUIET=1; shift; continue;;
       --)            shift; # everything after -- is positional
                       if [ $# -gt 0 ]; then
                         if [ "$seen_input" -eq 1 ]; then die "Multiple inputs provided"; fi
@@ -66,7 +68,9 @@ main() {
   [ -n "${pkg:-}" ] || die "Unable to resolve an AUR package from input."
   log_info "Resolved package: $pkg"
   # Verbose implies showing function summaries and detailed logs
-  if [ "$VERBOSE" = "1" ]; then SHOW_FUNCS=1; fi
+  if [ "$VERBOSE" = "1" ]; then SHOW_FUNCS=1; QUIET=0; fi
+  # Quiet overrides verbose/show funcs
+  if [ "$QUIET" = "1" ]; then SHOW_FUNCS=0; VERBOSE=0; fi
   install_or_verify "$pkg"
 }
 
