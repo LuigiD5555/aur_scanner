@@ -60,14 +60,19 @@ main() {
   elif is_github_url "$input"; then
     pkg="$(resolve_pkg "$input")" || true
   else
-    # Bare token: check AUR RPC first to avoid relying on yay search (single request)
-    local rpc_json
-    rpc_json="$(aur_plain_rpc_info "$input" 2>/dev/null || true)"
-    if printf '%s' "$rpc_json" | grep -Eq '"resultcount"[[:space:]]*:[[:space:]]*1' \
-       && printf '%s' "$rpc_json" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$input'"'; then
+    # Bare token: prefer fastest path in QUIET by trusting the input as the AUR name
+    if [ "${QUIET:-0}" = "1" ]; then
       pkg="$input"
     else
-      pkg="$(resolve_pkg "$input")" || true
+      # Check AUR RPC first to avoid relying on yay search (single request)
+      local rpc_json
+      rpc_json="$(aur_plain_rpc_info "$input" 2>/dev/null || true)"
+      if printf '%s' "$rpc_json" | grep -Eq '"resultcount"[[:space:]]*:[[:space:]]*1' \
+         && printf '%s' "$rpc_json" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$input'"'; then
+        pkg="$input"
+      else
+        pkg="$(resolve_pkg "$input")" || true
+      fi
     fi
   fi
   [ -n "${pkg:-}" ] || die "Unable to resolve an AUR package from input."

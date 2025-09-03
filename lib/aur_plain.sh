@@ -88,6 +88,50 @@ aur_plain_fetch_any() { # $1=pkg $2=destdir
   aur_plain_fetch_repo "$1" "$2"
 }
 
-aur_plain_rpc_info() { # $1=pkg -> prints JSON
-  curl -fsSL "https://aur.archlinux.org/rpc/v5/info/$1"
+aur_plain_rpc_info() { # $1=pkg -> prints JSON (cached, with timeouts)
+  local pkg="$1" cache_dir ttl now
+  cache_dir="${AUR_RPC_CACHE_DIR:-/tmp/aur-rpc-cache}"
+  ttl="${AUR_RPC_CACHE_TTL_SEC:-600}"
+  now="$(date +%s)"
+  mkdir -p "$cache_dir"
+  if [ -f "$cache_dir/$pkg.json" ]; then
+    local mtime
+    mtime="$(stat -c %Y "$cache_dir/$pkg.json" 2>/dev/null || echo 0)"
+    if [ $((now - mtime)) -lt "$ttl" ]; then
+      cat "$cache_dir/$pkg.json" && return 0
+    fi
+  fi
+  local CURL_OPTS
+  CURL_OPTS=(--fail --silent --show-error --location --compressed --connect-timeout 3 --max-time 6)
+  if curl "${CURL_OPTS[@]}" "https://aur.archlinux.org/rpc/v5/info/$pkg" -o "$cache_dir/$pkg.json"; then
+    cat "$cache_dir/$pkg.json"
+  else
+    # Best-effort: print stale cache if exists
+    [ -f "$cache_dir/$pkg.json" ] && cat "$cache_dir/$pkg.json"
+  fi
+}
+
+# aur_plain_rpc_search — fast AUR name search (cached)
+# Usage: aur_plain_rpc_search <term>
+# Prints candidate package names (one per line)
+aur_plain_rpc_search() { # $1=term
+  local term="$1" cache_dir ttl now
+  cache_dir="${AUR_RPC_CACHE_DIR:-/tmp/aur-rpc-cache}"
+  ttl="${AUR_RPC_CACHE_TTL_SEC:-600}"
+  now="$(date +%s)"
+  mkdir -p "$cache_dir"
+  local f="$cache_dir/search_${term}.json"
+  if [ -f "$f" ]; then
+    local mtime; mtime="$(stat -c %Y "$f" 2>/dev/null || echo 0)"
+    if [ $((now - mtime)) -lt "$ttl" ]; then
+      :
+    else
+      rm -f "$f" 2>/dev/null || true
+    fi
+  fi
+  local CURL_OPTS
+  CURL_OPTS=(--fail --silent --show-error --location --compressed --connect-timeout 3 --max-time 6)
+  [ -f "$f" ] || curl "${CURL_OPTS[@]}" "https://aur.archlinux.org/rpc/v5/search/$term" -o "$f" 2>/dev/null || true
+  [ -s "$f" ] || return 1
+  grep -o '"Name":"[^"]\+"' "$f" | sed 's/.*:"//;s/"$//' | sort -u
 }

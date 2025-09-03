@@ -102,8 +102,8 @@ rule_checksums() { # $1=pkgb $2=checkout $3=strict $4=fast
 
 rule_red_flags() { # $1=pkgb $2=strict
   local pkgb="$1" strict="$2" flags="" count=0
-  # Prefer JS parser if disponible para obtener líneas exactas
-  if js_parser_available; then
+  # Prefer JS parser if disponible para obtener líneas exactas (skip under QUIET for speed)
+  if [ "${QUIET:-0}" != "1" ] && js_parser_available; then
     count=$(js_pkgb_redflags_count "$pkgb" 2>/dev/null || echo 0)
     if [ "$count" -gt 0 ]; then
       # Detect common benign pattern: eval used for arch-based variable indirection

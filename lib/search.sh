@@ -32,24 +32,20 @@ aur_search_simple() { # $1=search_term $2=regex -> print only AUR pkgs
 # Name-strict AUR search (compat): use yay -Ss (names), filter by regex and repo==aur
 aur_search_name_strict_aur_only() { # $1=search_term $2=regex -> print only AUR pkgs
   local term="$1" pattern="$2"
+  # Prefer AUR RPC search in QUIET (faster), fallback to yay-based search otherwise
+  if [ "${QUIET:-0}" = "1" ]; then
+    aur_plain_rpc_search "$term" 2>/dev/null | grep -E "$pattern" | sort -u
+    return 0
+  fi
   log_info "Searching AUR for term: '$term' with pattern: '$pattern'"
-  
-  # Debug: show what yay -Ss returns
   local search_output
   search_output="$("$YAY_BIN" -Ss "$term" 2>/dev/null)" || {
     log_warn "yay -Ss '$term' failed or returned no results"
     return 1
   }
-  
-  if [ -z "$search_output" ]; then
-    log_warn "yay -Ss '$term' returned empty output"
-    return 1
-  fi
-  
+  [ -n "$search_output" ] || { log_warn "yay -Ss '$term' returned empty output"; return 1; }
   log_info "Raw search output for debugging:"
   printf '%s\n' "$search_output" | head -5 | sed 's/^/  DEBUG: /' >&2
-  
-  # Try simple approach first
   local simple_results
   simple_results="$(aur_search_simple "$term" "$pattern")"
   if [ -n "$simple_results" ]; then
@@ -57,22 +53,16 @@ aur_search_name_strict_aur_only() { # $1=search_term $2=regex -> print only AUR 
     printf '%s\n' "$simple_results"
     return 0
   fi
-  
-  # Fallback to more complex verification
   printf '%s\n' "$search_output" | awk '
     /^aur\// { 
-      # Extract package name from lines like "aur/package-name version (votes popularity)"
       line = $0
       sub(/^aur\//, "", line)
       split(line, parts, " ")
       pkg_name = parts[1]
-      if (pkg_name != "") {
-        print pkg_name
-      }
+      if (pkg_name != "") print pkg_name
     }
   ' | grep -E "$pattern" | sort -u | while read -r name; do
     log_info "Checking candidate: '$name'"
-    # Double-check that it exists and is from AUR
     if yay_exists_any "$name" && [ "$(yay_repo_of "$name")" = "aur" ]; then
       printf '%s\n' "$name"
     else

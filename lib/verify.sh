@@ -114,8 +114,8 @@ verify_pkgbuild() { # $1=AUR pkg name
     print_func_summaries "$pkgb" | sed 's/^/  /' >&2
   fi
 
-  # Optional: quick JS summary (if Node parser is available)
-  if js_parser_available; then
+  # Optional: quick JS summary (if Node parser is available). Skip under QUIET for speed.
+  if [ "${QUIET:-0}" != "1" ] && js_parser_available; then
     if [ "${VERBOSE:-0}" = "1" ]; then
       log_info "JS parser summary:"; js_pkgb_parse_summary "$pkgb" | sed 's/^/  /' >&2 || true
     fi
@@ -196,7 +196,7 @@ verify_pkgbuild() { # $1=AUR pkg name
 
 install_or_verify() {
   local pkg="$1"
-  if [ "$VERIFY_ONLY" = "1" ]; then
+  if [ "$VERIFY_ONLY" = "1" ] && [ "${SHOW_METADATA:-1}" = "1" ] && [ "${QUIET:-0}" != "1" ]; then
     log_info "VERIFY_ONLY=1 -> Showing metadata:"
     yay_query_any "$pkg" || true
   fi
