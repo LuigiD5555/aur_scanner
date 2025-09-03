@@ -89,7 +89,7 @@ aur_plain_fetch_any() { # $1=pkg $2=destdir
 }
 
 aur_plain_rpc_info() { # $1=pkg -> prints JSON (cached, with timeouts)
-  local pkg="$1" cache_dir ttl now
+  local pkg="$1" cache_dir ttl now tmp
   cache_dir="${AUR_RPC_CACHE_DIR:-/tmp/aur-rpc-cache}"
   ttl="${AUR_RPC_CACHE_TTL_SEC:-600}"
   now="$(date +%s)"
@@ -97,18 +97,34 @@ aur_plain_rpc_info() { # $1=pkg -> prints JSON (cached, with timeouts)
   if [ -f "$cache_dir/$pkg.json" ]; then
     local mtime
     mtime="$(stat -c %Y "$cache_dir/$pkg.json" 2>/dev/null || echo 0)"
-    if [ $((now - mtime)) -lt "$ttl" ]; then
+    if [ $((now - mtime)) -lt "$ttl" ] && [ -s "$cache_dir/$pkg.json" ]; then
       cat "$cache_dir/$pkg.json" && return 0
     fi
   fi
   local CURL_OPTS
   CURL_OPTS=(--fail --silent --show-error --location --compressed --connect-timeout 3 --max-time 6)
-  if curl "${CURL_OPTS[@]}" "https://aur.archlinux.org/rpc/v5/info/$pkg" -o "$cache_dir/$pkg.json"; then
-    cat "$cache_dir/$pkg.json"
+  tmp="$(mktemp -t aur-rpc-info-XXXXXX.json)"
+  if curl "${CURL_OPTS[@]}" "https://aur.archlinux.org/rpc/v5/info/$pkg" -o "$tmp"; then
+    if [ -s "$tmp" ]; then
+      mv -f "$tmp" "$cache_dir/$pkg.json" 2>/dev/null || cp "$tmp" "$cache_dir/$pkg.json" 2>/dev/null || true
+      cat "$cache_dir/$pkg.json"
+    else
+      rm -f "$tmp" 2>/dev/null || true
+      # Best-effort: print existing cache only if non-empty
+      [ -s "$cache_dir/$pkg.json" ] && cat "$cache_dir/$pkg.json"
+    fi
   else
-    # Best-effort: print stale cache if exists
-    [ -f "$cache_dir/$pkg.json" ] && cat "$cache_dir/$pkg.json"
+    rm -f "$tmp" 2>/dev/null || true
+    # Best-effort: print stale cache if exists and non-empty
+    [ -s "$cache_dir/$pkg.json" ] && cat "$cache_dir/$pkg.json"
   fi
+}
+
+# aur_plain_rpc_info_live — same as info but bypasses cache entirely
+aur_plain_rpc_info_live() { # $1=pkg -> prints JSON or nothing
+  local pkg="$1"; local CURL_OPTS
+  CURL_OPTS=(--fail --silent --show-error --location --compressed --connect-timeout 3 --max-time 6)
+  curl "${CURL_OPTS[@]}" "https://aur.archlinux.org/rpc/v5/info/$pkg" 2>/dev/null || true
 }
 
 # aur_plain_rpc_search — fast AUR name search (cached)

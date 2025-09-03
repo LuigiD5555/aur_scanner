@@ -122,6 +122,12 @@ resolve_pkg() { # $1=input -> print AUR pkg (stdout only)
        && printf '%s' "$info" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$c'"'; then
       printf '%s\n' "$c"; return 0
     fi
+    # If cache-based check failed, retry once bypassing cache to avoid false negatives
+    info="$(aur_plain_rpc_info_live "$c" 2>/dev/null || true)"
+    if printf '%s' "$info" | grep -Eq '"resultcount"[[:space:]]*:[[:space:]]*1' \
+       && printf '%s' "$info" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$c'"'; then
+      printf '%s\n' "$c"; return 0
+    fi
   done
 
   # Build strict regex from best candidate:
