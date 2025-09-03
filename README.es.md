@@ -189,6 +189,20 @@ Busca patrones peligrosos o poco confiables, por ejemplo:
 
 > Si detecta algo, **falla** con explicación.
 
+<details>
+<summary><strong>Severidad y patrones benignos comunes</strong></summary>
+
+- En modo normal, las banderas rojas generan ADVERTENCIA; con `STRICT=1` pueden escalar a FALLA.
+- Un caso frecuente de bajo riesgo es usar `eval` para resolver una variable según la arquitectura, por ejemplo:
+
+  `python -m installer --destdir="$pkgdir" $(eval echo "\${_anki_whl_$CARCH}")`
+
+  Esto resuelve una variable como `_anki_whl_x86_64`. Se mantiene como ADVERTENCIA en modo normal; en modo estricto sigue siendo FALLA.
+
+- La verificación profunda (`DEEP=1`) no es necesaria para este caso; puede aumentar la confianza validando checksums/PGP vía `makepkg --verifysource`.
+
+</details>
+
 ### 2) Dominios permitidos para `source=()`
 
 - Acepta (por defecto): `github.com`, `codeload.github.com`, `objects.githubusercontent.com`, `gitlab.com`.

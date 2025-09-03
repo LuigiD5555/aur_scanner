@@ -106,8 +106,27 @@ rule_red_flags() { # $1=pkgb $2=strict
   if js_parser_available; then
     count=$(js_pkgb_redflags_count "$pkgb" 2>/dev/null || echo 0)
     if [ "$count" -gt 0 ]; then
-      log_warn "Potential red flags found in PKGBUILD (JS parser):"
-      js_pkgb_redflags_lines "$pkgb" | sed 's/^/  /' >&2
+      # Detect common benign pattern: eval used for arch-based variable indirection
+      local lines benign=1
+      lines="$(js_pkgb_redflags_lines "$pkgb" 2>/dev/null || true)"
+      if [ -n "$lines" ]; then
+        while IFS= read -r ln; do
+          # Strip "<line>\t<content>" into just content
+          local content
+          content="${ln#*\t}"
+          if ! printf '%s' "$content" | grep -Eq '\$\(eval[[:space:]]+echo[[:space:]]+"\\\$\{_[A-Za-z0-9_]+_\\\$CARCH\}"\)'; then
+            benign=0; break
+          fi
+        done <<EOF
+$lines
+EOF
+      fi
+      if [ "$benign" = "1" ]; then
+        log_warn "Red flags (benign pattern: eval for arch indirection):"
+      else
+        log_warn "Potential red flags found in PKGBUILD (JS parser):"
+      fi
+      printf '%s\n' "$lines" | sed 's/^/  /' >&2
       if [ "$strict" = "1" ]; then
         report_add "item_red_flags" "FAIL" "redflags_fail"; return 1
       else

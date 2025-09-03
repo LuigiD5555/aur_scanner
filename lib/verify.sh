@@ -168,8 +168,7 @@ verify_pkgbuild() { # $1=AUR pkg name
   # Checksums
   rule_checksums "$pkgb" "$checkout" "${STRICT:-0}" "${FAST:-0}" || failed=1
 
-  # Red flags
-  local flags; flags="$(scan_red_flags "$pkgb")"; [ -n "$flags" ] && { log_warn "Potential red flags found in PKGBUILD:"; printf '%s\n' "$flags" | sed 's/^/  /' >&2; }
+  # Red flags (handled centrally; do not pre-print duplicates)
   rule_red_flags "$pkgb" "${STRICT:-0}" || failed=1
 
   # verifysource

@@ -189,6 +189,20 @@ Looks for dangerous or untrustworthy patterns, for example:
 
 > If something is detected, it **fails** with an explanation.
 
+<details>
+<summary><strong>Severity and common benign patterns</strong></summary>
+
+- In normal mode, red flags produce a WARN; in `STRICT=1`, they can escalate to FAIL.
+- A frequent low‑risk case is using `eval` for architecture‑based variable indirection, e.g.:
+
+  `python -m installer --destdir="$pkgdir" $(eval echo "\${_anki_whl_$CARCH}")`
+
+  This resolves a variable like `_anki_whl_x86_64`. It’s kept as WARN in normal mode; still FAIL in strict mode.
+
+- Deep verification (`DEEP=1`) is not required for this case; it can increase confidence by validating checksums/PGP via `makepkg --verifysource`.
+
+</details>
+
 ### 2) Allowed domains for `source=()`
 
 - Accepts (by default): `github.com`, `codeload.github.com`, `objects.githubusercontent.com`, `gitlab.com`.  
