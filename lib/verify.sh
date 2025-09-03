@@ -46,30 +46,30 @@ report_print() { # $1=install_mode (install|verify-only)
 
 aur_checkout_to() { # $1=pkg $2=workdir -> prints "<dir> <mode>" where mode=plain|snapshot|git
   local pkg="$1" workdir="$2" d=""
-  # 1) Intentar siempre primero PKGBUILD plano (HTML plain)
+  # 1) Try AUR "plain" endpoints first (lightweight)
   if d="$(aur_plain_fetch_plain_files "$pkg" "$workdir" 2>/dev/null)"; then
-    [ -f "$d/PKGBUILD" ] || die "Plain fetch succeeded but PKGBUILD missing."
+    [ -f "$d/PKGBUILD" ] || die "Plain fetch reported success, but PKGBUILD is missing at '$d/PKGBUILD' (pkg=$pkg)."
     log_info "Fetched AUR plain PKGBUILD: $pkg"
     # Emit TAB-delimited pair: <dir>\t<mode>
     printf '%s\tplain\n' "$d"
     return 0
   fi
-  # 2) En FAST, cancelar si no hay PKGBUILD plano
+  # 2) In FAST mode, abort if plain PKGBUILD is unavailable
   if [ "${FAST:-0}" = "1" ]; then
-    die "Plain PKGBUILD not available (FAST mode)."
+    die "Plain PKGBUILD unavailable for '$pkg' while FAST=1. Rerun without --fast to allow snapshot/git fallback."
   fi
-  # 3) Normal/Strict: intentar snapshot
+  # 3) Normal/Strict: try snapshot tarball
   if d="$(aur_plain_fetch_repo "$pkg" "$workdir" 2>/dev/null)"; then
-    [ -f "$d/PKGBUILD" ] || die "Snapshot extracted but PKGBUILD missing."
+    [ -f "$d/PKGBUILD" ] || die "Snapshot extracted, but PKGBUILD is missing at '$d/PKGBUILD' (pkg=$pkg)."
     log_info "Fetched AUR snapshot: $pkg"
     printf '%s\tsnapshot\n' "$d"
     return 0
   fi
-  # 4) Fallback final a git clone
+  # 4) Final fallback: git clone
   log_info "Plain/snapshot failed; cloning AUR: $pkg"
   git clone --depth=1 "https://aur.archlinux.org/${pkg}.git" "$workdir/$pkg" >/dev/null 2>&1 \
-    || die "Failed to fetch AUR via plain/snapshot and git clone."
-  [ -f "$workdir/$pkg/PKGBUILD" ] || die "PKGBUILD not found after git clone."
+    || die "Failed to fetch AUR via plain/snapshot and git clone for '$pkg'."
+  [ -f "$workdir/$pkg/PKGBUILD" ] || die "PKGBUILD not found after git clone at '$workdir/$pkg/PKGBUILD' (pkg=$pkg)."
   printf '%s\tgit\n' "$workdir/$pkg"
 }
 
@@ -84,7 +84,7 @@ verify_pkgbuild() { # $1=AUR pkg name
   local checkout fetch_mode
   # Use a tab-delimited pair to avoid interference with global IFS changes
   IFS=$'\t' read -r checkout fetch_mode < <(aur_checkout_to "$pkg" "$workdir")
-  [ -f "$checkout/PKGBUILD" ] || die "PKGBUILD not found."
+  [ -f "$checkout/PKGBUILD" ] || die "PKGBUILD not found at '$checkout/PKGBUILD' (mode=$fetch_mode, pkg=$pkg)."
   local pkgb="$checkout/PKGBUILD"
 
   case "${fetch_mode:-plain}" in
