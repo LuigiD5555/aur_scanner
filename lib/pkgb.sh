@@ -8,7 +8,7 @@ has_weak_or_skip() { grep -Eq '^[[:space:]]*(md5sums|sha1sums)=' || grep -Eq '(^
 
 list_sources() {
   sed -n "s/^[[:space:]]*source[[:space:]]*=[[:space:]]*(\(.*\))/\1/p" \
-    | tr ' ' '\n' | tr -d '"' "'" \
+    | tr ' ' '\n' | tr -d "\"'" \
     | sed "s/[()']//g" | grep -E '^(https?|git|ftp)://|::https?://|::git://'
 }
 
@@ -65,3 +65,25 @@ scan_red_flags() { # PKGBUILD path
     "$1" || true
 }
 
+# pkgb_check_vcs_pinning — warn on git+ sources without #commit= or #tag=
+pkgb_check_vcs_pinning() { # $1=PKGBUILD
+  local pkgb="$1" unpinned=0
+  local sources
+  sources="$(sed -n 's/^[[:space:]]*source[[:space:]]*=[[:space:]]*(\(.*\))/\1/p' "$pkgb" \
+            | tr ' ' '\n' | tr -d "\"'" | sed 's/[()]//g')"
+  while IFS= read -r s; do
+    [ -z "$s" ] && continue
+    case "$s" in *::*) s="${s#*::}";; esac
+    case "$s" in
+      git+http*|git+https*)
+        if ! printf '%s' "$s" | grep -Eq '#(commit|tag)='; then
+          log_warn "Unpinned VCS source: $s (add #commit= or #tag= per VCS guidelines)"
+          unpinned=1
+        fi
+        ;;
+    esac
+  done <<EOF
+$sources
+EOF
+  return $unpinned
+}
