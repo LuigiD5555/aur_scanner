@@ -50,6 +50,7 @@ i18n_translate_msg() { # $1=msg_key
     sum_missing_fast)         [ "$REPORT_LANG" = es ] && echo "Sin sumas fuertes; FAST=1 omitió añadir sha256sums" || echo "No strong sums; FAST=1 skipped adding sha256sums";;
     redflags_ok)              [ "$REPORT_LANG" = es ] && echo "Sin patrones sospechosos" || echo "No suspicious patterns detected";;
     redflags_warn)            [ "$REPORT_LANG" = es ] && echo "Se detectaron patrones sospechosos" || echo "Suspicious patterns found";;
+    redflags_warn_arch_eval)  [ "$REPORT_LANG" = es ] && echo "Eval usado para elegir archivo según arquitectura de CPU (riesgo bajo)" || echo "Eval used to select file by CPU architecture (low risk)";;
     redflags_fail)            [ "$REPORT_LANG" = es ] && echo "Patrones sospechosos (STRICT)" || echo "Suspicious patterns found (STRICT)";;
     js_git_pinned_ok)         [ "$REPORT_LANG" = es ] && echo "Fuentes git fijadas (JS)" || echo "Git sources pinned (JS)";;
     js_git_unpinned_warn)     [ "$REPORT_LANG" = es ] && echo "Hay git sin fijar (JS)" || echo "Unpinned git sources (JS)";;
