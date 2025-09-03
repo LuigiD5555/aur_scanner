@@ -100,17 +100,27 @@ resolve_pkg() { # $1=input -> print AUR pkg (stdout only)
       candidates=("$fallback_repo" "${fallback_repo}-git" "${fallback_repo}-bin" "${fallback_repo}-appimage")
     fi
   else
+    # If the user explicitly provided a suffixed name (-git|-bin|-appimage),
+    # respect it and return it directly rather than "des-suffixing" later.
+    # This avoids resolving to the base package when the user asked for a variant.
+    local lower; lower="$(printf '%s' "$input" | tr '[:upper:]' '[:lower:]')"
+    if printf '%s' "$lower" | grep -Eq '(-git|-bin|-appimage)$'; then
+      printf '%s\n' "$(normalize_kebab "$lower")"
+      return 0
+    fi
     local b; b="$(normalize_kebab "$input")"
     candidates=("$b" "${b}-git" "${b}-bin" "${b}-appimage")
   fi
 
   [ "$FAST" = "1" ] && mapfile -t candidates < <(printf '%s\n' "${candidates[@]}" | prefer_fast_variant)
 
-  # Exact AUR match check
+  # Exact AUR match check via RPC (faster than yay)
   for c in "${candidates[@]}"; do
-    if yay_exists_any "$c" && [ "$(yay_repo_of "$c")" = "aur" ]; then
-      printf '%s\n' "$c"
-      return 0
+    local info
+    info="$(aur_plain_rpc_info "$c" 2>/dev/null || true)"
+    if printf '%s' "$info" | grep -Eq '"resultcount"[[:space:]]*:[[:space:]]*1' \
+       && printf '%s' "$info" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$c'"'; then
+      printf '%s\n' "$c"; return 0
     fi
   done
 
@@ -142,7 +152,12 @@ resolve_pkg() { # $1=input -> print AUR pkg (stdout only)
 
   log_info "No exact AUR match. Expanding with name-strict AUR search: /$regex/"
   local -a hits=()
-  mapfile -t hits < <(aur_search_name_strict_aur_only "$search_term" "$regex")
+  # Try AUR RPC search first (fast)
+  mapfile -t hits < <(aur_plain_rpc_search "$search_term" 2>/dev/null | grep -E "$regex" | sort -u)
+  # Fallback to yay-based search only if needed
+  if [ "${#hits[@]}" -eq 0 ]; then
+    mapfile -t hits < <(aur_search_name_strict_aur_only "$search_term" "$regex")
+  fi
 
   if [ "${#hits[@]}" -eq 0 ]; then
     head="$(printf '%s' "${candidates[0]}")"; head="${head%%-*}"
