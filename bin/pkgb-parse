@@ -1,0 +1,254 @@
+#!/usr/bin/env node
+/*
+  pkgb-parse — Lightweight PKGBUILD static parser
+
+  Usage:
+    pkgb-parse --file /path/to/PKGBUILD [--summary]
+    cat PKGBUILD | pkgb-parse [--summary]
+
+  Outputs JSON to stdout by default. With --summary, prints a concise
+  human-readable summary. With --signals, prints key=value pairs suited
+  for shell consumption.
+  With --redflags-lines, prints lines that matched red-flag heuristics
+  as "line\tcontent" (tab-separated) for easy shell parsing.
+  With --sources-compact [--limit N], prints one line per source with
+  domain/type and pin status for human-friendly audits.
+*/
+
+const fs = require('fs');
+const path = require('path');
+
+function readStdin() {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', chunk => data += chunk);
+    process.stdin.on('end', () => resolve(data));
+    process.stdin.on('error', reject);
+  });
+}
+
+function stripComments(line) {
+  // Remove trailing comments (# ...) when not inside single/double quotes
+  let out = '';
+  let inS = false, inD = false, esc = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (esc) { out += c; esc = false; continue; }
+    if (c === '\\') { out += c; esc = true; continue; }
+    if (!inS && c === '"') { inD = !inD; out += c; continue; }
+    if (!inD && c === "'") { inS = !inS; out += c; continue; }
+    if (!inS && !inD && c === '#') { break; }
+    out += c;
+  }
+  return out;
+}
+
+function splitItems(s) {
+  const items = [];
+  const re = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|[^\s]+/g;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    let v = m[1] ?? m[2] ?? m[0];
+    // Unescape quotes in quoted strings
+    v = v.replace(/\\([\\"'])/g, '$1');
+    items.push(v);
+  }
+  return items;
+}
+
+function parsePKGBUILD(text) {
+  const result = {
+    meta: {},
+    arrays: {},
+    checksums: {},
+    functions: { prepare: false, build: false, package: false },
+    sources: [], // {raw, url, name, scheme, isGit, pin, domain, https}
+    risks: { unpinnedGitCount: 0, nonHttpsCount: 0, redFlags: [] },
+  };
+
+  const lines = text.replace(/\r/g, '').split(/\n/);
+  let i = 0;
+  let collecting = null; // key for array
+  let buf = '';
+
+  const pushArray = (key, content) => {
+    const inner = content.replace(/^.*?\(/, '').replace(/\)[^)]*$/, '');
+    const items = splitItems(inner);
+    result.arrays[key] = items;
+  };
+
+  const redFlagRe = new RegExp(
+    [
+      'curl\\s*\\|\\s*sh', 'wget\\s*\\|\\s*sh', 'eval\\s',
+      'base64\\s*-d', 'openssl\\s+enc', '/dev/tcp', 'rm\\s*-rf\\s+/',
+      'useradd\\s', 'systemctl\\s', 'setcap\\s', 'chmod\\s4[0-9]{3}',
+      'python\\s+-c', 'perl\\s+-e', 'ruby\\s+-e', 'node\\s+-e'
+    ].join('|'), 'i'
+  );
+
+  for (; i < lines.length; i++) {
+    let line = stripComments(lines[i]).trim();
+    if (!line) continue;
+
+    // function starts
+    if (/^prepare\(\)/.test(line)) result.functions.prepare = true;
+    if (/^build\(\)/.test(line)) result.functions.build = true;
+    if (/^package\(\)/.test(line)) result.functions.package = true;
+
+    if (collecting) {
+      buf += ' ' + line;
+      if (/\)/.test(line)) { // naive close
+        pushArray(collecting, buf);
+        collecting = null; buf = '';
+      }
+      continue;
+    }
+
+    // arrays like key=( ... ) possibly multiline
+    let mArr = line.match(/^([a-zA-Z0-9_]+)\s*=\s*\(/);
+    if (mArr) {
+      collecting = mArr[1];
+      buf = line;
+      if (/\)/.test(line)) { // single-line
+        pushArray(collecting, buf);
+        collecting = null; buf = '';
+      }
+      continue;
+    }
+
+    // scalar assignments
+    const m = line.match(/^([a-zA-Z0-9_]+)\s*=\s*(.*)$/);
+    if (m) {
+      const key = m[1];
+      let val = m[2].trim();
+      val = val.replace(/^['"]|['"]$/g, '');
+      if ([ 'pkgname','pkgver','pkgrel','epoch' ].includes(key)) {
+        result.meta[key] = val;
+      }
+      if ([ 'md5sums','sha1sums','sha256sums','sha512sums' ].includes(key)) {
+        result.checksums[key] = val;
+      }
+    }
+
+    // red flags
+    if (redFlagRe.test(line)) {
+      result.risks.redFlags.push({ line: i + 1, text: lines[i] });
+    }
+  }
+
+  // Derive sources and risk info
+  const srcs = result.arrays.source || [];
+  const norm = [];
+  let unpinned = 0, nonHttps = 0;
+  for (const raw of srcs) {
+    const s = String(raw);
+    const idx = s.indexOf('::');
+    const url = idx >= 0 ? s.slice(idx + 2) : s;
+    const name = idx >= 0 ? s.slice(0, idx) : null;
+    let scheme = null;
+    {
+      const schemeMatch = url.match(/^([a-zA-Z+]+):/);
+      scheme = schemeMatch ? schemeMatch[1] : null;
+    }
+    const isGit = /^git\+/.test(url) || /^git:/.test(url) || /\.git(#|$)/.test(url);
+    const pinM = url.match(/#(commit|tag)=([^&#]+)/);
+    const pin = pinM ? { kind: pinM[1], value: pinM[2] } : null;
+    if (isGit && !pin) unpinned++;
+    const isHttpsish = /^https:/.test(url) || /^git\+https:/.test(url);
+    if (!isHttpsish) nonHttps++;
+    // domain: strip git+ prefix for URL parsing
+    let domain = '';
+    try {
+      const u = new URL(url.replace(/^git\+/, ''));
+      domain = u.hostname || '';
+    } catch (_) {
+      // best-effort fallback
+      const m = url.replace(/^git\+/, '').match(/^[a-zA-Z]+:\/\/([^\/:]+)([:/]|$)/);
+      domain = m ? m[1] : '';
+    }
+    norm.push({ raw, url, name, scheme, isGit, pin, domain, https: isHttpsish });
+  }
+  result.sources = norm;
+  result.risks.unpinnedGitCount = unpinned;
+  result.risks.nonHttpsCount = nonHttps;
+
+  return result;
+}
+
+function printSummary(obj) {
+  const srcs = obj.sources.length;
+  const unp = obj.risks.unpinnedGitCount;
+  const nonHttps = obj.risks.nonHttpsCount;
+  const rf = obj.risks.redFlags.length;
+  const name = obj.meta.pkgname ?? '(unknown)';
+  const ver = obj.meta.pkgver ?? '(unknown)';
+  console.log(`PKGBUILD: ${name} ${ver} — sources:${srcs} git-unpinned:${unp} non-https:${nonHttps} redflags:${rf}`);
+}
+
+function printSignals(obj) {
+  const s = {
+    pkgname: obj.meta.pkgname || '',
+    pkgver: obj.meta.pkgver || '',
+    sources: obj.sources.length,
+    unpinnedGit: obj.risks.unpinnedGitCount,
+    nonHttps: obj.risks.nonHttpsCount,
+    redFlags: obj.risks.redFlags.length,
+  };
+  for (const [k,v] of Object.entries(s)) {
+    console.log(`${k}=${v}`);
+  }
+}
+
+function printSourcesCompact(obj, limit) {
+  const items = obj.sources;
+  const take = Math.max(0, Math.min(items.length, limit || items.length));
+  for (let i = 0; i < take; i++) {
+    const s = items[i];
+    const label = s.name || `source[${i}]`;
+    const type = s.isGit ? 'git' : (s.scheme || 'url');
+    const pin = s.isGit ? (s.pin ? `${s.pin.kind}=${s.pin.value}` : 'none') : '-';
+    const https = s.https ? 'https' : 'non-https';
+    console.log(`${label} -> ${s.domain || '-'} (${type}) pin: ${pin} ${https}`);
+  }
+  if (items.length > take) {
+    console.log(`(+${items.length - take} more…)`);
+  }
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  let file = null; let summary = false; let signals = false; let redLines = false; let srcCompact = false; let limit = null;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--file' && i + 1 < args.length) { file = args[++i]; continue; }
+    if (a === '--summary') { summary = true; continue; }
+    if (a === '--signals') { signals = true; continue; }
+    if (a === '--redflags-lines') { redLines = true; continue; }
+    if (a === '--sources-compact') { srcCompact = true; continue; }
+    if (a === '--limit' && i + 1 < args.length) { limit = parseInt(args[++i], 10); continue; }
+    if (a === '--help' || a === '-h') {
+      console.log('Usage: pkgb-parse --file PKGBUILD [--summary|--signals|--redflags-lines|--sources-compact [--limit N]]\n       cat PKGBUILD | pkgb-parse [--summary|--signals|--redflags-lines|--sources-compact [--limit N]]');
+      process.exit(0);
+    }
+  }
+  let data;
+  if (file && file !== '-') {
+    data = fs.readFileSync(path.resolve(file), 'utf8');
+  } else {
+    data = await readStdin();
+  }
+  const parsed = parsePKGBUILD(data);
+  if (summary) { printSummary(parsed); return; }
+  if (signals) { printSignals(parsed); return; }
+  if (redLines) {
+    for (const rf of parsed.risks.redFlags) {
+      console.log(`${rf.line}\t${rf.text}`);
+    }
+    return;
+  }
+  if (srcCompact) { printSourcesCompact(parsed, limit ?? undefined); return; }
+  console.log(JSON.stringify(parsed, null, 2));
+}
+
+main().catch(err => { console.error(String(err)); process.exit(1); });

@@ -16,7 +16,7 @@
 
 This Bash tool takes an AUR package name **or** a GitHub URL and:
 
-1) **Clones** the AUR repository (or **detects** the AUR package wrapping a GitHub URL).  
+1) **Fetches from AUR directly** using the official snapshot/plain endpoints (no git clone), or **detects** the AUR package that wraps a GitHub URL. If the snapshot/plain endpoints are unavailable, it falls back to a shallow `git clone`.  
 2) **Audits** the `PKGBUILD` with static checks (common red flags).  
 3) **Verifies the integrity** of the sources with `makepkg --verifysource`.  
 4) **Fixes** weak checksums (e.g., `sha1sums`/`SKIP`) by replacing them with `sha256sums` (only in normal mode).  
@@ -85,7 +85,7 @@ chmod +x ./aur_verify_then_yay.sh
 
 **Flags**:
 
-- `--verify-only` — Run the checks and **exit without installing**.  
+- `--verify-only` — Run static checks and exit without installing (no downloads); set `DEEP=1` to include `makepkg --verifysource`.  
 - `--fast` — **Metadata-only** verification (skips `makepkg --verifysource`). ⚠️ With `STRICT=1` it reduces guarantees.  
 - `-h`/`--help` — Help.
 
@@ -97,6 +97,11 @@ chmod +x ./aur_verify_then_yay.sh
   - If `.sig` files exist in `source=()`, it **must** pass `makepkg --verifysource` (PGP).  
   - Shows a **summary** of the functions `prepare()`, `build()`, `package()`.  
 - `YAY_BIN=/path/to/yay` — Change the yay binary.
+
+Reporting and language:
+
+- The final summary report appears in your terminal language (English by default, Spanish when `LANG`/`LC_*` starts with `es`).
+- You can force a language with `REPORT_LANG=en` or `REPORT_LANG=es`.
 
 ---
 
@@ -134,11 +139,46 @@ Looks for dangerous or untrustworthy patterns, for example:
 ### 5) `makepkg --verifysource`
 
 - Runs **without building** (integrity/PGP only).  
-- With `--fast`, it is deliberately skipped (superficial review using `yay -Si` metadata).
+- Skipped when using `--verify-only` (static checks) unless you set `DEEP=1`.  
+- Skipped with `--fast` (superficial review using `yay -Si` metadata).
 
 ### 6) Summary of `prepare()/build()/package()` (STRICT)
 
 - Displays the **first lines** of each function for quick visibility before installing.
+
+### 7) VCS pinning (git+ sources)
+
+- Warns when a `git+https://…` source lacks `#commit=` or `#tag=`. In `STRICT=1`, this causes a failure. This enforces reproducibility for VCS packages.
+
+### 8) Final summary report (non‑experts)
+
+- Prints a concise, human‑readable summary (PASS/WARN/FAIL/SKIP) with a final “Overall” verdict and the action taken.
+- Localized to English/Spanish based on your terminal.
+
+<details>
+<summary><strong>Report fields and meanings</strong></summary>
+
+- PKGBUILD Source: where the PKGBUILD came from (AUR snapshot/plain vs git clone fallback)
+- VCS pinning: whether `git+…` sources are pinned to `#commit=` or `#tag=`
+- Source URLs: checks that all sources use HTTPS
+- Allowed domains: validates domains against an allowlist
+- Checksums: enforces/remediates checksum policy (sha256)
+- Static red flags: highlights suspicious patterns in the PKGBUILD
+- makepkg --verifysource: integrity/PGP verification (skipped in verify‑only unless `DEEP=1`)
+
+Status values:
+
+- PASS: everything is fine
+- WARN: potentially risky or non‑ideal, but not blocked
+- FAIL: blocking issue; installation is aborted
+- SKIP: deliberately not run due to mode (verify‑only/fast)
+
+Language control:
+
+- Auto: uses `LANG`/`LC_*` (Spanish when starting with `es`)
+- Force: set `REPORT_LANG=es` or `REPORT_LANG=en`
+
+</details>
 
 ---
 
@@ -146,7 +186,7 @@ Looks for dangerous or untrustworthy patterns, for example:
 
 - **Input = AUR package name**  
 
-  Clones `https://aur.archlinux.org/<pkg>.git`, runs checks and, if everything passes, installs with:
+  Fetches `PKGBUILD` from AUR snapshot/plain (no clone), runs checks and, if everything passes, installs with:
 
   ```bash
   yay -S --noconfirm <pkg>
@@ -169,6 +209,14 @@ Looks for dangerous or untrustworthy patterns, for example:
   If it’s AUR and requires compilation, it attempts to **switch** to a fast variant (e.g. `*-bin`). If none exist, it **fails** (to avoid long builds).
 
 ---
+
+## 🔎 Input detection (autodetect)
+
+- AUR package URL (`https://aur.archlinux.org/packages/<name>`): extracts `<name>` and fetches from AUR snapshot/plain.
+- GitHub URL: derives likely AUR wrapper names (repo title + repo name, plus `-git`/`-bin`/`-appimage`), validates against AUR.
+- Bare name: queries the official AUR RPC v5 for an exact hit first; if none, falls back to name‑strict search on `yay -Ss` limited to AUR results.
+
+This approach minimizes trust on local heuristics and uses AUR’s official endpoints wherever possible.
 
 ## 📚 Examples
 
@@ -215,7 +263,11 @@ FAST=1 sh ./aur_verify_then_yay.sh <package>
 - `lib/github.sh`: GitHub URL parsing, README/title scraping, robust repo fallback.
 - `lib/search.sh`: candidate generation, strict AUR name search via `yay -Ss` parsing, resolver.
 - `lib/pkgb.sh`: PKGBUILD parsers, domain and checksum policies, red-flag scanning.
-- `lib/verify.sh`: cloning, verification pipeline, optional installation.
+- `lib/verify.sh`: orchestrates verification, uses atomic rules, prints a localized summary.
+- `lib/verify_rules.sh`: atomic verification rules (VCS pinning, sources, checksums, red flags, verifysource).
+- `lib/aur_plain.sh`: AUR snapshot/plain fetchers and AUR RPC v5 helpers.
+- `lib/i18n.sh`: language detection and translations (en/es).
+- `lib/report.sh`: final summary report assembly (uses i18n).
 - `aur_verify_then_yay.sh`: legacy wrapper that delegates to `bin/aur-verify`.
 
 Key recent improvements
@@ -223,6 +275,16 @@ Key recent improvements
 - Robust GitHub repo parsing with a safe fallback even for edge URLs.
 - Name-strict AUR search implemented on top of `yay -Ss` output, filtered to `aur/…` entries.
 - Guaranteed non-empty candidate lists to avoid empty search terms.
+
+<details>
+<summary><strong>Refactors for readability and testing</strong></summary>
+
+- Autodetection prefers AUR snapshot/plain; shallow git clone is only a fallback.
+- Verification logic split into small, testable rules in `lib/verify_rules.sh`.
+- Final report and translations live in `lib/report.sh` + `lib/i18n.sh` (not interleaved with checks).
+- Easier to unit‑test each rule in isolation by providing a `PKGBUILD` path and mode.
+
+</details>
 
 <details>
 <summary><strong>Overview of the flow</strong></summary>
@@ -237,7 +299,7 @@ Key recent improvements
         │        │
         │        └─ Verify that PKGBUILD points to that repo
         │
-        ├─ Clone AUR: https://aur.archlinux.org/<pkg>.git
+        ├─ Fetch AUR (snapshot/plain; fallback to clone): https://aur.archlinux.org/<pkg>.git
         │
         ├─ Static PKGBUILD scan (red flags)
         │
