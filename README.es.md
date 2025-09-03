@@ -88,7 +88,7 @@ chmod +x ./aur_verify_then_yay.sh
 - `--verify-only` — Ejecuta verificaciones estáticas y sale sin instalar (**sin descargas**); usa `DEEP=1` para incluir `makepkg --verifysource`.
 - `--fast` — Verificaciones **sólo de metadatos** (omite `makepkg --verifysource`). ⚠️ En `STRICT=1` reduce garantías.
 - `--verbose` — Muestra todos los detalles para usuarios avanzados (incluye resúmenes de funciones y más contexto en incidencias).
- - `--quiet` — Logs mínimos (solo errores y el resumen final de verificación).
+- `--quiet` — Logs mínimos (solo errores y el resumen final de verificación).
 - `-h`/`--help` — Ayuda.
 
 **Variables de entorno**:
@@ -106,6 +106,33 @@ Reporte e idioma:
 - Puedes forzar el idioma con `REPORT_LANG=es` o `REPORT_LANG=en`.
  - `SHOW_FUNCS=1` — Mostrar resúmenes de `prepare()/build()/package()`; implícito con `--verbose`.
  - `QUIET=1` — Equivalente a `--quiet`.
+
+---
+
+## 🧪 Modos de verificación y profundidad
+
+Ajusta qué tan profunda es la verificación y cuánta salida se muestra:
+
+- `--verify-only`: Por defecto solo checks estáticos (sin descargas ni instalación).  
+  - Añade `DEEP=1` para ejecutar también `makepkg --verifysource` (descarga fuentes y verifica checksums/PGP).  
+  - Útil para CI o cuando quieres verificar integridad sin instalar.
+- `--fast`: Solo metadatos; omite `makepkg --verifysource` y cualquier descarga.  
+  - Tiene precedencia sobre `DEEP=1` (si `FAST=1`, no habrá verificación profunda).
+- `STRICT=1`: Endurece políticas (solo HTTPS, dominios permitidos, sumas fuertes, pinning) y convierte algunos WARN en FAIL.  
+- `--verbose` / `--quiet`: Aumenta detalles (contexto completo, resúmenes de funciones) o minimiza logs (solo errores + resumen final).
+
+Cuándo usar cada uno
+
+- Triage rápido (sin descargas): `sh ./aur_verify_then_yay.sh <paquete> --verify-only --fast`
+- Integridad sin instalar: `DEEP=1 sh ./aur_verify_then_yay.sh <paquete> --verify-only`
+- Filtro estricto para sistemas sensibles: `STRICT=1 DEEP=1 sh ./aur_verify_then_yay.sh <paquete> --verify-only`
+- Auditoría detallada: `STRICT=1 sh ./aur_verify_then_yay.sh <paquete> --verify-only --verbose`
+- Mínimo ruido: `sh ./aur_verify_then_yay.sh <paquete> --verify-only --quiet`
+
+Notas
+
+- La verificación profunda (`DEEP=1`) requiere red para bajar fuentes; se omite si se establece `--fast`.
+- La instalación depende del veredicto final; si es FAIL y no estás en verify‑only, se aborta la instalación.
 
 ---
 

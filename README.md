@@ -88,7 +88,7 @@ chmod +x ./aur_verify_then_yay.sh
 - `--verify-only` — Run static checks and exit without installing (no downloads); set `DEEP=1` to include `makepkg --verifysource`.  
 - `--fast` — **Metadata-only** verification (skips `makepkg --verifysource`). ⚠️ With `STRICT=1` it reduces guarantees.  
 - `--verbose` — Print full details for advanced users (show function summaries, expand incident snippets with full context).
- - `--quiet` — Minimal logs (only errors and the final verification summary).
+- `--quiet` — Minimal logs (only errors and the final verification summary).
 - `-h`/`--help` — Help.
 
 **Environment variables**:
@@ -106,6 +106,33 @@ Reporting and language:
 - You can force a language with `REPORT_LANG=en` or `REPORT_LANG=es`.
  - `SHOW_FUNCS=1` — Also show `prepare()/build()/package()` summaries; implied by `--verbose`.
  - `QUIET=1` — Same effect as `--quiet`.
+
+---
+
+## 🧪 Verification modes and depth
+
+Use these knobs to control how deep the verification goes and how much is shown:
+
+- `--verify-only`: Static checks only by default (no downloads, no install).  
+  - Add `DEEP=1` to also run `makepkg --verifysource` (downloads sources and verifies checksums/PGP).  
+  - Good for CI or when you want integrity checks without installing.
+- `--fast`: Metadata-only mode; skips `makepkg --verifysource` and any downloads.  
+  - Takes precedence over `DEEP=1` (i.e., `FAST=1` disables deep verification).
+- `STRICT=1`: Tightens policies (HTTPS-only, allowed domains, strong checksums, pinning) and upgrades certain WARN into FAIL.  
+- `--verbose` / `--quiet`: Increase details (full context, function summaries) or minimize logs (only errors + final summary).
+
+When to use which
+
+- Quick triage (no downloads): `sh ./aur_verify_then_yay.sh <pkg> --verify-only --fast`
+- Integrity without install: `DEEP=1 sh ./aur_verify_then_yay.sh <pkg> --verify-only`
+- Strict gate for security‑sensitive systems: `STRICT=1 DEEP=1 sh ./aur_verify_then_yay.sh <pkg> --verify-only`
+- Detailed auditing: `STRICT=1 sh ./aur_verify_then_yay.sh <pkg> --verify-only --verbose`
+- Minimal noise: `sh ./aur_verify_then_yay.sh <pkg> --verify-only --quiet`
+
+Notes
+
+- Deep verification (`DEEP=1`) requires network to fetch sources; it is skipped if `--fast` is set.
+- Installation path still depends on the overall summary; if it’s FAIL and you’re not in verify‑only, installation is aborted.
 
 ---
 
