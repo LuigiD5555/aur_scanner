@@ -63,15 +63,15 @@ async function main() {
 ${colorize('Usage:', 'bold')} pkgb-parse [OPTIONS]
 
 ${colorize('Options:', 'bold')}
-  --file PATH          Parse PKGBUILD from file
-  --url URL            Fetch and parse PKGBUILD from URL
+  --file PATH         Parse PKGBUILD from file
+  --url URL           Fetch and parse PKGBUILD from URL
   --summary           Show brief summary line
   --json              Output raw JSON
   --signals           Show key=value pairs
-  --redflags-lines     Print red flags as "line\tcontent"
-  --sources-compact    Print compact sources list (optionally limited)
-  --limit N            Limit items for compact output
-  --help, -h          Show this help
+  --redflags-lines    Print red flags as "line\tcontent"
+  --sources-compact   Print compact sources list (optionally limited)
+  --limit N           Limit items for compact output
+  --help, -h         Show this help
 
 ${colorize('Examples:', 'bold')}
   pkgb-parse --file ./PKGBUILD
@@ -83,16 +83,22 @@ ${colorize('Examples:', 'bold')}
   }
 
   let data;
-  try {
-    if (url) {
-      process.stderr.write(colorize('Fetching from URL... ', 'gray'));
-      data = await fetchFromURL(url);
-      process.stderr.write(colorize('done\n', 'green'));
-    } else if (file) {
-      data = await fs.readFile(path.resolve(file), 'utf8');
-    } else {
-      data = await readStdin();
-    }
+   try {
+     if (url) {
+       // AUR hint and friendlier message when fetching from aur.archlinux.org
+       const isAur = /\baur\.archlinux\.org\b/.test(url);
+       if (isAur && !/\/plain\/PKGBUILD\b/.test(url)) {
+         console.error(colorize('Tip: For AUR packages, use URLs like:', 'yellow'));
+         console.error(colorize('https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=package-name', 'gray'));
+       }
+       process.stderr.write(colorize(isAur ? 'Fetching from AUR (respectfully)... ' : 'Fetching from URL... ', 'gray'));
+       data = await fetchFromURL(url);
+       process.stderr.write(colorize('done\n', 'green'));
+     } else if (file) {
+       data = await fs.readFile(path.resolve(file), 'utf8');
+     } else {
+       data = await readStdin();
+     }
 
     const parsed = parsePKGBUILD(data);
     
