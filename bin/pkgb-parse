@@ -11,10 +11,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { fetchFromURL, readStdin } from '../lib/js_node/utils.js';
-import { parsePKGBUILD } from '../lib/js_node/analysis.js';
-import { colorize } from '../lib/js_node/colors.js';
-import { printDetailedAnalysis, printSummary, printSignals, printRedflagsLines, printSourcesCompact } from '../lib/js_node/outputs.js';
+import { fetchFromURL } from '../lib/pkgb/parser/utils/modules/networkFetch.js';
+import { readStdin } from '../lib/pkgb/parser/utils/modules/stdinRead.js';
+import { parsePKGBUILD } from '../lib/pkgb/parser/analysis.js';
+import { colorize } from '../lib/pkgb/parser/terminalColors.js';
+import { printDetailedAnalysis } from '../lib/pkgb/parser/outputs/modules/renderDetailedAnalysis.js';
+import { printSummary } from '../lib/pkgb/parser/outputs/modules/renderSummaryLine.js';
+import { printSignals } from '../lib/pkgb/parser/outputs/modules/renderSignalsKeyValue.js';
+import { printRedflagsLines } from '../lib/pkgb/parser/outputs/modules/renderRedflagsLines.js';
+import { printSourcesCompact } from '../lib/pkgb/parser/outputs/modules/renderCompactSources.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
