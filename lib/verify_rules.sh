@@ -114,7 +114,8 @@ rule_red_flags() { # $1=pkgb $2=strict
           # Strip "<line>\t<content>" into just content
           local content
           content="${ln#*\t}"
-          if ! printf '%s' "$content" | grep -Eq '\$\(eval[[:space:]]+echo[[:space:]]+"\\\$\{_[A-Za-z0-9_]+_\\\$CARCH\}"\)'; then
+          # Detect pattern: $(eval echo "${_FOO_$CARCH}")
+          if ! printf '%s' "$content" | grep -Eq '\$\(eval[[:space:]]+echo[[:space:]]+"\$\{_[A-Za-z0-9_]+_\$CARCH\}"\)'; then
             benign=0; break
           fi
         done <<EOF
@@ -148,7 +149,7 @@ EOF
     # Try to identify the benign eval-arch pattern in fallback mode
     local eval_lines total_eval benign_fallback=0
     total_eval=$(grep -En 'eval' "$pkgb" | wc -l | tr -d ' ')
-    eval_lines=$(grep -En '\$\(eval[[:space:]]+echo[[:space:]]+"\\\$\{_[A-Za-z0-9_]+_\\\$CARCH\}"\)' "$pkgb" | wc -l | tr -d ' ')
+    eval_lines=$(grep -En '\$\(eval[[:space:]]+echo[[:space:]]+"\$\{_[A-Za-z0-9_]+_\$CARCH\}"\)' "$pkgb" | wc -l | tr -d ' ')
     if [ "$total_eval" -gt 0 ] && [ "$total_eval" -eq "$eval_lines" ]; then
       benign_fallback=1
     fi
