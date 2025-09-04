@@ -1,0 +1,26 @@
+# redflags.list — one extended-regex per line (EGREP/JS compatible)
+# Lines starting with # are comments; blank lines are ignored.
+
+curl\s*\|\s*(sh|bash)
+wget\s*\|\s*(sh|bash)
+\beval\b\s+
+base64\s*-d.*\|
+openssl\s+enc
+/dev/tcp/
+rm\s*-rf\s+(/|\$)
+\buseradd\b\s
+\bsystemctl\b\s+(enable|start)
+\bsetcap\b\s
+chmod\s+[47][0-9]{3}
+\bpython\b\s*-c
+\bperl\b\s*-e
+\bruby\b\s*-e
+\bnode\b\s*-e
+\$\(.*curl.*\)
+dd\s+if=.*of=/
+\bmount\b\s+
+\bumount\b\s+
+\bsu\b\s+-c
+\bsudo\b\s+
+\bpkexec\b\s+
+

@@ -46,23 +46,43 @@ rewrite_sums_to_sha256() { # dir with PKGBUILD
 }
 
 scan_red_flags() { # PKGBUILD path
-  grep -Eni \
-    -e 'curl[[:space:]]*\|[[:space:]]*sh' \
-    -e 'wget[[:space:]]*\|[[:space:]]*sh' \
-    -e 'eval[[:space:]]' \
-    -e 'base64[[:space:]]*-d' \
-    -e 'openssl[[:space:]]+enc' \
-    -e '/dev/tcp' \
-    -e 'rm[[:space:]]*-rf[[:space:]]+/' \
-    -e 'useradd[[:space:]]' \
-    -e 'systemctl[[:space:]]' \
-    -e 'setcap[[:space:]]' \
-    -e 'chmod[[:space:]]4[0-9]{3}' \
-    -e 'python[[:space:]]+-c' \
-    -e 'perl[[:space:]]+-e' \
-    -e 'ruby[[:space:]]+-e' \
-    -e 'node[[:space:]]+-e' \
-    "$1" || true
+  local pkgb="$1" script_dir rules
+  script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+  rules="$script_dir/rules/redflags.list"
+  if [ -f "$rules" ]; then
+    # Use extended regexes from shared list; ignore comments/blank lines
+    # Build a temporary pattern file without comments for grep -f
+    local tmp; tmp="$(mktemp -t redflags-XXXXXX.regex)"
+    awk 'BEGIN{IGNORECASE=0} /^[[:space:]]*#/ {next} NF>0 {print}' "$rules" > "$tmp"
+    grep -Eni -E -f "$tmp" "$pkgb" || true
+    rm -f "$tmp" >/dev/null 2>&1 || true
+  else
+    # Fallback (should rarely be used): inline patterns
+    grep -Eni \
+      -e 'curl[[:space:]]*\|[[:space:]]*(sh|bash)' \
+      -e 'wget[[:space:]]*\|[[:space:]]*(sh|bash)' \
+      -e '\beval\b[[:space:]]' \
+      -e 'base64[[:space:]]*-d.*\|' \
+      -e 'openssl[[:space:]]+enc' \
+      -e '/dev/tcp' \
+      -e 'rm[[:space:]]*-rf[[:space:]]+(/|\$)' \
+      -e '\buseradd\b[[:space:]]' \
+      -e '\bsystemctl\b[[:space:]]+(enable|start)' \
+      -e '\bsetcap\b[[:space:]]' \
+      -e 'chmod[[:space:]][47][0-9]{3}' \
+      -e '\bpython\b[[:space:]]+-c' \
+      -e '\bperl\b[[:space:]]+-e' \
+      -e '\bruby\b[[:space:]]+-e' \
+      -e '\bnode\b[[:space:]]+-e' \
+      -e '\$\(.*curl.*\)' \
+      -e 'dd[[:space:]]+if=.*of=/' \
+      -e '\bmount\b[[:space:]]+' \
+      -e '\bumount\b[[:space:]]+' \
+      -e '\bsu\b[[:space:]]+-c' \
+      -e '\bsudo\b[[:space:]]+' \
+      -e '\bpkexec\b[[:space:]]+' \
+      "$pkgb" || true
+  fi
 }
 
 # pkgb_check_vcs_pinning — warn on git+ sources without #commit= or #tag=
