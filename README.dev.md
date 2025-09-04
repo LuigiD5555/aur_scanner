@@ -67,6 +67,10 @@ This document captures implementation details, tuning knobs, and maintenance not
 
 ## Tests and Local Tips
 
+- Run tests (requires bats):
+  - `scripts/run-tests.sh`
+  - Or directly: `bats tests`
+
 - Quick loop on a target package:
   - `STRICT=1 sh ./aur_verify_then_yay.sh <pkg> --verify-only --verbose`
   - `FAST=1 sh ./aur_verify_then_yay.sh <pkg> --verify-only`
@@ -79,3 +83,10 @@ This document captures implementation details, tuning knobs, and maintenance not
 - Keep README focused on usage and stable flags. Place internal tuning and rationale here.
 - Do not link this file from README unless intentionally surfacing to users.
 
+## DRY and Ownership of Rules
+
+- Red flags list lives in `lib/rules/redflags.list` and is consumed by:
+  - Bash: `lib/pkgb.sh` -> `scan_red_flags()` via `grep -E -f`
+  - JS: `lib/js_node/patterns.js` loads the same file
+- Enforcement (PASS/WARN/FAIL) stays in Bash (`lib/verify_rules.sh`).
+- JS parser is diagnostics-only (summaries, sources and red flag lines in VERBOSE).
