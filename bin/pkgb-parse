@@ -88,22 +88,22 @@ ${colorize('Examples:', 'bold')}
   }
 
   let data;
-   try {
-     if (url) {
-       // AUR hint and friendlier message when fetching from aur.archlinux.org
-       const isAur = /\baur\.archlinux\.org\b/.test(url);
-       if (isAur && !/\/plain\/PKGBUILD\b/.test(url)) {
-         console.error(colorize('Tip: For AUR packages, use URLs like:', 'yellow'));
-         console.error(colorize('https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=package-name', 'gray'));
-       }
-       process.stderr.write(colorize(isAur ? 'Fetching from AUR (respectfully)... ' : 'Fetching from URL... ', 'gray'));
-       data = await fetchFromURL(url);
-       process.stderr.write(colorize('done\n', 'green'));
-     } else if (file) {
-       data = await fs.readFile(path.resolve(file), 'utf8');
-     } else {
-       data = await readStdin();
-     }
+  try {
+    if (url) {
+      // AUR hint and friendlier message when fetching from aur.archlinux.org
+      const isAur = /\baur\.archlinux\.org\b/.test(url);
+      if (isAur && !/\/plain\/PKGBUILD\b/.test(url)) {
+        console.error(colorize('Tip: For AUR packages, use URLs like:', 'yellow'));
+        console.error(colorize('https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=package-name', 'gray'));
+      }
+      process.stderr.write(colorize(isAur ? 'Fetching from AUR (respectfully)... ' : 'Fetching from URL... ', 'gray'));
+      data = await fetchFromURL(url);
+      process.stderr.write(colorize('done\n', 'green'));
+    } else if (file) {
+      data = await fs.readFile(path.resolve(file), 'utf8');
+    } else {
+      data = await readStdin();
+    }
 
     const parsed = parsePKGBUILD(data);
     
