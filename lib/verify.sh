@@ -114,49 +114,14 @@ verify_pkgbuild() { # $1=AUR pkg name
     print_func_summaries "$pkgb" | sed 's/^/  /' >&2
   fi
 
-  # Optional: quick JS summary (if Node parser is available). Skip under QUIET for speed.
+  # Optional: JS diagnostics only (no enforcement). Skip under QUIET for speed.
   if [ "${QUIET:-0}" != "1" ] && js_parser_available; then
     if [ "${VERBOSE:-0}" = "1" ]; then
       log_info "JS parser summary:"; js_pkgb_parse_summary "$pkgb" | sed 's/^/  /' >&2 || true
+      log_info "Sources (resolved):"; js_pkgb_sources_compact "$pkgb" 12 | sed 's/^/  /' >&2 || true
+      log_info "Red flags (lines):"; js_pkgb_redflags_lines "$pkgb" | sed 's/^/  /' >&2 || true
     fi
-    # Connect parser signals into the report
-    local js_unpinned=0 js_nonhttps=0 js_redflags=0 js_sources=0
-    while IFS='=' read -r k v; do
-      case "$k" in
-        unpinnedGit) js_unpinned="$v";;
-        nonHttps)    js_nonhttps="$v";;
-        redFlags)    js_redflags="$v";;
-        sources)     js_sources="$v";;
-      esac
-    done < <(js_pkgb_signals "$pkgb" 2>/dev/null || true)
-    # Sources info (informativo)
-    report_add "item_js_sources" "PASS" "sources_${js_sources}"
-    # Unpinned git
-    if [ "$js_unpinned" -gt 0 ]; then
-      if [ "${STRICT:-0}" = "1" ]; then
-        report_add "item_js_git_pinning" "FAIL" "js_git_unpinned_fail"
-      else
-        report_add "item_js_git_pinning" "WARN" "js_git_unpinned_warn"
-      fi
-    else
-      report_add "item_js_git_pinning" "PASS" "js_git_pinned_ok"
-    fi
-    # Non-HTTPS
-    if [ "$js_nonhttps" -gt 0 ]; then
-      if [ "${STRICT:-0}" = "1" ]; then
-        report_add "item_js_https" "FAIL" "js_https_fail"
-      else
-        report_add "item_js_https" "WARN" "js_https_warn"
-      fi
-    else
-      report_add "item_js_https" "PASS" "js_https_ok"
-    fi
-    # Sources compact list (verbose only)
-    if [ "${VERBOSE:-0}" = "1" ]; then
-      log_info "Sources (resolved):"
-      js_pkgb_sources_compact "$pkgb" 12 | sed 's/^/  /' >&2 || true
-    fi
-    # Red flags: handled centrally in rule_red_flags (JS-aware). No extra item here.
+    # Note: Do not add JS-derived items to the report; Bash rules decide outcomes.
   fi
 
   # VCS pinning
