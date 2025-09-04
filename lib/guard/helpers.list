@@ -1,0 +1,10 @@
+#!/dev/null
+# helper_name  kind
+# kind can be: pacman (pacman-like -S style), pamac (subcommands build/install/upgrade)
+
+yay     pacman
+paru    pacman
+pikaur  pacman
+trizen  pacman
+pamac   pamac
+
