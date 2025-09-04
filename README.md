@@ -29,42 +29,133 @@ This Bash tool takes an AUR package name **or** a GitHub URL and:
 
 ## 🚀 Quick start
 
-You can run it either via the legacy wrapper or the new modular entrypoint:
+Run it via the modular entrypoint (recommended):
 
-- Wrapper (backward compatible):
-  - `sh ./aur_verify_then_yay.sh <package|GitHub_URL>`
-- Modular entrypoint:
-  - `bash bin/aur-verify <package|GitHub_URL>`
+- `sh ./bin/aur-verify <package|GitHub_URL>`
+- or `bash bin/aur-verify <package|GitHub_URL>`
 
 Install after verifying an AUR package:
 
 ```bash
-sh ./aur_verify_then_yay.sh oreo-nord-cursors-git
+sh ./bin/aur-verify oreo-nord-cursors-git
 ```
 
 Verify only (no install):
 
 ```bash
-sh ./aur_verify_then_yay.sh --verify-only oreo-nord-cursors-git
+sh ./bin/aur-verify --verify-only oreo-nord-cursors-git
 ```
 
 Strict mode (tighter policies):
 
 ```bash
-STRICT=1 sh ./aur_verify_then_yay.sh oreo-nord-cursors-git
+STRICT=1 sh ./bin/aur-verify oreo-nord-cursors-git
 ```
 
 Fast verification (metadata only, no `makepkg` downloads):
 
 ```bash
-FAST=1 sh ./aur_verify_then_yay.sh <AUR-package>
+FAST=1 sh ./bin/aur-verify <AUR-package>
 ```
 
 Detect and verify from a GitHub repository (finds the AUR wrapper):
 
 ```bash
-sh ./aur_verify_then_yay.sh https://github.com/OWNER/REPO
+sh ./bin/aur-verify https://github.com/OWNER/REPO
 ```
+
+Pre-check before installing (aur-guard):
+
+- Explicit invocation (no PATH changes):
+
+```bash
+bin/aur-guard yay -S oreo-nord-cursors-git
+bin/aur-guard paru -Syu oreo-nord-cursors-git
+bin/aur-guard pikaur -S oreo-nord-cursors-git
+bin/aur-guard trizen -S oreo-nord-cursors-git
+bin/aur-guard pamac build oreo-nord-cursors-git
+# pacman does not install AUR; wrapper just delegates
+bin/aur-guard pacman -S neovim
+```
+
+- Drop-in after creating the symlink to `~/.local/bin/yay`:
+
+```bash
+yay -S oreo-nord-cursors-git
+paru -Syu oreo-nord-cursors-git
+pikaur -S oreo-nord-cursors-git
+trizen -S oreo-nord-cursors-git
+pamac build oreo-nord-cursors-git
+```
+
+---
+
+## 🧰 Intercepting wrapper (aur-guard)
+
+If you want a pre-check before using your usual AUR helpers (yay/paru/pamac), use the universal wrapper and put it at the beginning of your PATH.
+
+Explicit invocation examples:
+
+```bash
+bin/aur-guard yay -S <pkg1> <pkg2>
+bin/aur-guard paru -Syu <pkg>
+bin/aur-guard pamac build <pkg>
+```
+
+Drop-in via symlinks (recommended):
+
+```bash
+mkdir -p ~/.local/bin
+ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/yay
+ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/paru
+ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/pikaur
+ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/trizen
+ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/pamac
+export PATH="$HOME/.local/bin:$PATH"
+
+# Now use your commands as usual
+yay -S <aur-package>
+paru -S <aur-package>
+pamac build <aur-package>
+# optional: pacman symlink delegates without AUR verification
+ 
+```
+
+### Automatic setup
+
+Run the installer to create the symlinks automatically and ensure PATH order:
+
+```bash
+bash scripts/install-aur-guard.sh            # user mode (recommended)
+# or
+sudo bash scripts/install-aur-guard.sh --system  # system-wide into /usr/local/bin
+```
+
+Behavior
+
+- Detects target packages and verifies those that exist in AUR via `bin/aur-verify --verify-only` (AUR RPC v5).
+- Aborts if any verification fails; otherwise delegates to the real helper with the same arguments.
+- Respects knobs like `STRICT=1`, `FAST=1`, `VERBOSE=1`, `QUIET=1` (affecting `bin/aur-verify`).
+- To force the real binary path, set `AUR_GUARD_REAL_YAY=/usr/bin/yay` (analogous for PARU/PAMAC).
+- To bypass the wrapper temporarily, use `AUR_GUARD_BYPASS=1`.
+
+Helper behavior (transparent)
+
+- The wrapper does not modify helper behavior; it only runs pre-checks and then delegates with the same args.
+- For pamac, pre-checks run only on the explicit AUR flow: `pamac build`. Normal `pamac install|upgrade` are left untouched.
+
+Convenience flags (optional)
+
+- You may pass verifier flags with helpers; the wrapper uses them for pre-checks and strips them before delegating:
+  - `--strict` (same as `STRICT=1`)
+  - `--fast` (same as `FAST=1`)
+  - `--verbose` / `--quiet` (same as `VERBOSE=1` / `QUIET=1`)
+  - `--metadata` (same as `SHOW_METADATA=1`)
+  - `--verify-only` (run pre-checks and do not install via helper)
+
+Developer note: helper list (extendable)
+
+- Extend `lib/guard/helpers.list` to add new helpers or adjust kinds (`pacman` vs `pamac`).
 
 ---
 
@@ -75,8 +166,7 @@ sh ./aur_verify_then_yay.sh https://github.com/OWNER/REPO
   - You can override the yay binary with `YAY_BIN=/path/to/yay`.
 
 ```bash
-# Make it executable
-chmod +x ./aur_verify_then_yay.sh
+# No installation required; invoke directly with sh or bash
 ```
 
 ---
@@ -86,6 +176,7 @@ chmod +x ./aur_verify_then_yay.sh
 **Flags**:
 
 - `--verify-only` — Run static checks and exit without installing (no downloads); set `DEEP=1` to include `makepkg --verifysource`.  
+- `--deep` — In verify-only, also run `makepkg --verifysource` (downloads sources and verifies checksums/PGP).  
 - `--fast` — **Metadata-only** verification (skips `makepkg --verifysource`). ⚠️ With `STRICT=1` it reduces guarantees.  
 - `--verbose` — Print full details for advanced users (show function summaries, repository metadata, and expand incident snippets with full context).
 - `--quiet` — Minimal logs (only errors and the final verification summary). Overrides `--metadata`.
@@ -125,11 +216,11 @@ Use these knobs to control how deep the verification goes and how much is shown:
 
 When to use which
 
-- Quick triage (no downloads): `sh ./aur_verify_then_yay.sh <pkg> --verify-only --fast`
-- Integrity without install: `DEEP=1 sh ./aur_verify_then_yay.sh <pkg> --verify-only`
-- Strict gate for security‑sensitive systems: `STRICT=1 DEEP=1 sh ./aur_verify_then_yay.sh <pkg> --verify-only`
-- Detailed auditing: `STRICT=1 sh ./aur_verify_then_yay.sh <pkg> --verify-only --verbose`
-- Minimal noise: `sh ./aur_verify_then_yay.sh <pkg> --verify-only --quiet`
+- Quick triage (no downloads): `sh ./bin/aur-verify <pkg> --verify-only --fast`
+- Integrity without install: `DEEP=1 sh ./bin/aur-verify <pkg> --verify-only`
+- Strict gate for security‑sensitive systems: `STRICT=1 DEEP=1 sh ./bin/aur-verify <pkg> --verify-only`
+- Detailed auditing: `STRICT=1 sh ./bin/aur-verify <pkg> --verify-only --verbose`
+- Minimal noise: `sh ./bin/aur-verify <pkg> --verify-only --quiet`
 
 Notes
 
@@ -143,7 +234,7 @@ Notes
 The project ships a modular Node.js CLI to parse PKGBUILD files quickly and feed extra signals into the Bash reports. It is optional: if Node is unavailable, Bash uses grep/awk heuristics.
 
 - Entry point: `bin/pkgb-parse`
-- Modules: `lib/js_node/{analysis,utils,outputs,patterns,colors}.js`
+- Modules: `lib/pkgb/parser/{analysis,utils,outputs,patterns,terminalColors}.js`
 
 Examples:
 
@@ -234,7 +325,12 @@ Looks for dangerous or untrustworthy patterns, for example:
 
 - Warns when a `git+https://…` source lacks `#commit=` or `#tag=`. In `STRICT=1`, this causes a failure. This enforces reproducibility for VCS packages.
 
-### 8) Final summary report (non‑experts)
+### 8) Red flags (diagnostics)
+
+- Red flag scanning is available and JS diagnostics print red-flag lines in `--verbose` when Node is present.
+- Note: the current runner does not add a red-flags item to the summary; this is diagnostic output only. The atomic `rule_red_flags` exists and can be invoked independently.
+
+### 9) Final summary report (non‑experts)
 
 - Prints a concise, human‑readable summary (PASS/WARN/FAIL/SKIP) with a final “Overall” verdict and the action taken.
 - Localized to English/Spanish based on your terminal.
@@ -247,7 +343,7 @@ Looks for dangerous or untrustworthy patterns, for example:
 - Source URLs: checks that all sources use HTTPS
 - Allowed domains: validates domains against an allowlist
 - Checksums: enforces/remediates checksum policy (sha256)
-- Static red flags: highlights suspicious patterns in the PKGBUILD
+- Red flags (diagnostic): suspicious patterns (printed in --verbose when JS is available; not part of the summary items)
 - makepkg --verifysource: integrity/PGP verification (skipped in verify‑only unless `DEEP=1`)
 
 Status values:
@@ -288,9 +384,7 @@ Language control:
 
 - **`--fast`**  
 
-  If the package is in official repos: installs directly (no build).  
-
-  If it’s AUR and requires compilation, it attempts to **switch** to a fast variant (e.g. `*-bin`). If none exist, it **fails** (to avoid long builds).
+  Affects verification depth (skips `makepkg --verifysource`) and biases name resolution to prefer `-bin`/`-appimage` candidates when applicable. It does not alter the final install command beyond that.
 
 ---
 
@@ -307,31 +401,31 @@ This approach minimizes trust on local heuristics and uses AUR’s official endp
 Verify and install a cursor from AUR (if it exists):
 
 ```bash
-sh ./aur_verify_then_yay.sh oreo-nord-cursors-git
+sh ./bin/aur-verify oreo-nord-cursors-git
 ```
 
 Verify only (no install):
 
 ```bash
-sh ./aur_verify_then_yay.sh --verify-only oreo-nord-cursors-git
+sh ./bin/aur-verify --verify-only oreo-nord-cursors-git
 ```
 
 Verify an AUR wrapper starting from GitHub:
 
 ```bash
-sh ./aur_verify_then_yay.sh https://github.com/OWNER/REPO
+sh ./bin/aur-verify https://github.com/OWNER/REPO
 ```
 
 Force strict mode:
 
 ```bash
-STRICT=1 sh ./aur_verify_then_yay.sh <package>
+STRICT=1 sh ./bin/aur-verify <package>
 ```
 
 Superficial verification (no `makepkg` downloads):
 
 ```bash
-FAST=1 sh ./aur_verify_then_yay.sh <package>
+FAST=1 sh ./bin/aur-verify <package>
 ```
 
 ---
@@ -341,18 +435,56 @@ FAST=1 sh ./aur_verify_then_yay.sh <package>
 ### Modular layout
 
 - `bin/aur-verify`: CLI entrypoint that loads modules and orchestrates the flow.
-- `lib/common.sh`: shell safety, bash re-exec, tool discovery.
-- `lib/log.sh`: structured logging helpers.
-- `lib/yay.sh`: metadata extraction from `yay -Si`, repo detection.
-- `lib/github.sh`: GitHub URL parsing, README/title scraping, robust repo fallback.
-- `lib/search.sh`: candidate generation, strict AUR name search via `yay -Ss` parsing, resolver.
-- `lib/pkgb.sh`: PKGBUILD parsers, domain and checksum policies, red-flag scanning.
-- `lib/verify.sh`: orchestrates verification, uses atomic rules, prints a localized summary.
-- `lib/verify_rules.sh`: atomic verification rules (VCS pinning, sources, checksums, red flags, verifysource).
-- `lib/aur_plain.sh`: AUR snapshot/plain fetchers and AUR RPC v5 helpers.
-- `lib/i18n.sh`: language detection and translations (en/es).
-- `lib/report.sh`: final summary report assembly (uses i18n).
-- `aur_verify_then_yay.sh`: legacy wrapper that delegates to `bin/aur-verify`.
+- Core: `lib/core/shell_safety.sh` and `lib/utils/logging.sh`.
+- AUR fetchers: `lib/aur/fetch_plain_and_snapshot.sh` (plain/snapshot; RPC helpers).
+- AUR search/resolve: `lib/aur/search_and_resolve.sh` (strict name search and resolver).
+- Repository metadata: optional via `$YAY_BIN -Si` when available (no helper file needed).
+- GitHub candidates: `lib/github/derive_candidates_from_repo.sh` (URL parsing + README/title scraping).
+- PKGBUILD helpers: `lib/pkgb/aggregate_pkgb_helpers.sh` (agrupa: sources, checksums, redflags, summaries).
+- Verify rules: `lib/verify/rules.sh` (agrupa reglas atómicas: VCS pinning, sources, checksums, redflags, verifysource).
+- Verify runner: `lib/verify/runner.sh` (orquesta la verificación e instalación opcional).
+- i18n: `lib/i18n/messages.sh` (en/es).
+- Report: `lib/report/render_summary.sh` (resumen final localizado).
+  (The previous legacy wrapper `aur_verify_then_yay.sh` has been removed; use `bin/aur-verify`.)
+
+<details>
+<summary><strong>Full Module Reference (Bash and JS)</strong></summary>
+
+Bash
+
+- Core and Logging
+  - `lib/core/shell_safety.sh`: strict Bash settings, `have_cmd`, `require_tools`.
+  - `lib/utils/logging.sh`: `log_info`, `log_warn`, `log_error`, `die`.
+- AUR and GitHub
+  - `lib/aur/fetch_plain_and_snapshot.sh`: `aur_plain_fetch_plain_files`, `aur_plain_fetch_repo`, `aur_plain_rpc_*`.
+  - `lib/aur/search_and_resolve.sh`: `resolve_pkg`, strict AUR name search and resolver.
+  - Repository metadata is read opportunistically via `$YAY_BIN -Si` when present.
+  - `lib/github/derive_candidates_from_repo.sh`: URL parsing, README/title scraping, candidates.
+- PKGBUILD helpers
+  - `lib/pkgb/sources_and_domains.sh`: `list_sources`, HTTPS/domains checks.
+  - `lib/pkgb/checksums_policy.sh`: `has_strong_sums`, `has_weak_or_skip`, `rewrite_sums_to_sha256`.
+  - `lib/pkgb/redflags_scan.sh`: `scan_red_flags` from shared list.
+  - `lib/pkgb/functions_summary.sh`: `print_func_summaries`.
+  - `lib/pkgb/aggregate_pkgb_helpers.sh`: aggregates above and `pkgb_check_vcs_pinning`.
+- Verification
+  - `lib/verify/rules.sh`: aggregates `lib/verify/rules/*.sh`.
+  - Rules: `vcs_pinning_rule.sh`, `sources_rule.sh`, `checksums_rule.sh`, `redflags_rule.sh`, `verifysource_rule.sh`.
+  - `lib/verify/runner.sh`: `verify_pkgbuild`, `install_or_verify`, `aur_checkout_to`.
+- i18n and Reporting
+  - `lib/i18n/messages.sh`: translations (en/es).
+  - `lib/report/render_summary.sh`: final localized summary.
+
+JavaScript (Node)
+
+- Parser composition: `lib/pkgb/parser/parser/composePkgbuildParser.js` (exports `parsePKGBUILD`).
+- Spider/crawler: `lib/pkgb/parser/parser/spider/{crawlPkgbuildAndEmitHooks,scanBalancedParentheses,scanBalancedCurlyBraces}.js`.
+- Helpers: `lib/pkgb/parser/parser/{extractPkgbuildArraysAndMapFields,extractScalarsToMetaAndChecksums,analyzeSourcesResolvePinsAndDomains,computeRiskScoresAndSeverity}.js`.
+- Patterns: `lib/pkgb/parser/patterns/{compileRegexPatterns.js,modules/loadSharedRedflags.js}`.
+- Outputs: `lib/pkgb/parser/outputs/modules/{renderDetailedAnalysis,renderSummaryLine,renderSignalsKeyValue,renderRedflagsLines,renderCompactSources}.js`.
+- Utils: `lib/pkgb/parser/utils/modules/{parseShellStyleTokensAndStripComments,networkFetch,stdinRead}.js`.
+- Colors: `lib/pkgb/parser/terminalColors.js`. Facade: `lib/pkgb/parser/analysis.js`.
+
+</details>
 
 Key recent improvements
 
@@ -364,9 +496,19 @@ Key recent improvements
 <summary><strong>Refactors for readability and testing</strong></summary>
 
 - Autodetection prefers AUR snapshot/plain; shallow git clone is only a fallback.
-- Verification logic split into small, testable rules in `lib/verify_rules.sh`.
-- Final report and translations live in `lib/report.sh` + `lib/i18n.sh` (not interleaved with checks).
+- Verification logic split into small, testable rules in `lib/verify/rules.sh`.
+- Final report and translations live in `lib/report/render_summary.sh` + `lib/i18n/messages.sh`.
 - Easier to unit‑test each rule in isolation by providing a `PKGBUILD` path and mode.
+
+</details>
+
+<details>
+<summary><strong>Function Reference (concise)</strong></summary>
+
+- Runner: `verify_pkgbuild`, `install_or_verify`, `aur_checkout_to`.
+- Rules: `rule_vcs_pinning`, `rule_sources`, `rule_checksums`, `rule_verifysource` (and `rule_red_flags` available; diagnostics only in current runner).
+- PKGB helpers: `list_sources`, `sources_have_only_https`, `sources_domains_allowed`, `has_strong_sums`, `has_weak_or_skip`, `rewrite_sums_to_sha256`, `scan_red_flags`, `print_func_summaries`, `pkgb_check_vcs_pinning`.
+- AUR/GitHub + resolver: `aur_plain_fetch_*`, `aur_plain_rpc_*`, `resolve_pkg`, `aur_search_name_strict_aur_only`, `prefer_fast_variant`, `is_github_url`, `build_candidates_from_github`.
 
 </details>
 
@@ -378,13 +520,13 @@ Key recent improvements
 sequenceDiagram
     participant User as User
     participant CLI as CLI bin/aur-verify
-    participant GitHub as GitHub lib/github.sh
-    participant Search as AUR Resolver lib/search.sh
-    participant Plain as AUR Plain/RPC lib/aur_plain.sh
-    participant Verify as Verifier lib/verify.sh
-    participant Rules as Rules lib/verify_rules.sh
-    participant PKGB as PKGB Utils lib/pkgb.sh
-    participant Report as Report lib/report.sh + lib/i18n.sh
+    participant GitHub as GitHub lib/github/derive_candidates_from_repo.sh
+    participant Search as AUR Resolver lib/aur/search_and_resolve.sh
+    participant Plain as AUR Plain/RPC lib/aur/fetch_plain_and_snapshot.sh
+    participant Verify as Verifier lib/verify/runner.sh
+    participant Rules as Rules lib/verify/rules.sh
+    participant PKGB as PKGB Utils lib/pkgb/aggregate_pkgb_helpers.sh
+    participant Report as Report lib/report/render_summary.sh + lib/i18n/messages.sh
     participant Makepkg as makepkg
     participant Yay as yay
 
@@ -447,10 +589,7 @@ sequenceDiagram
     Rules-->>Report: report_add item_checksums
     Note over Rules,Report: Default → only weak/SKIP lines; Verbose → show all checksum arrays and mark weak/SKIP
 
-    Verify->>Rules: rule_red_flags PKGBUILD
-    Rules->>PKGB: scan_red_flags
-    PKGB-->>Rules: Matches
-    Rules-->>Report: report_add item_red_flags
+    Note over Verify: In --verbose, JS prints red-flag lines (diagnostic only)
     end
 
     %% Deep verification optional
@@ -522,16 +661,16 @@ flowchart TD
 <details>
 <summary><strong>Key modules (high level)</strong></summary>
 
-- `lib/github.sh`: URL parsing, README title, kebab-case candidates, safe repo fallback.
-- `lib/search.sh`: strict `yay -Ss` name search filtered to AUR, candidate ordering, resolver.
-- `lib/pkgb.sh`: source scanning, checksum policy helpers, function summaries, red flags.
-- `lib/verify.sh`: orchestrates verification, uses atomic rules, prints a localized summary.
-- `lib/verify_rules.sh`: atomic rules (VCS pinning, sources, checksums, red flags, verifysource).
-- `lib/aur_plain.sh`: AUR snapshot/plain fetchers and AUR RPC v5 helpers.
-- `lib/i18n.sh`: language detection and translations (en/es).
-- `lib/report.sh`: final summary report assembly (uses i18n).
-- `lib/yay.sh`: `yay -Si` field extraction, repo/source metadata.
- - `bin/pkgb-parse` + `lib/js_node/*`: Optional Node.js static parser used by Bash when available.
+- GitHub candidates: `lib/github/derive_candidates_from_repo.sh`
+- AUR search/resolve: `lib/aur/search_and_resolve.sh`
+- PKGBUILD helpers: `lib/pkgb/aggregate_pkgb_helpers.sh`
+- Verify runner: `lib/verify/runner.sh`
+- Verify rules: `lib/verify/rules.sh`
+- AUR fetchers: `lib/aur/fetch_plain_and_snapshot.sh`
+- i18n: `lib/i18n/messages.sh`
+- Report: `lib/report/render_summary.sh`
+  - Repository metadata via `$YAY_BIN -Si` when available
+- Node CLI: `bin/pkgb-parse` + `lib/pkgb/parser/*`
 
 </details>
 
@@ -567,9 +706,9 @@ flowchart TD
 - **“source domain not allowed” (STRICT)**  
 
   Add the domain to the allowlist in the script or install in normal mode (at your discretion).
-- **“FAST: would require a full AUR build”**  
-
-  Try a `-bin` flavor or run without `--fast` (accepting compilation).
+-- **“Plain PKGBUILD unavailable for '<pkg>' while FAST=1”**  
+  
+  FAST mode disables snapshot/git fallbacks. Rerun without `--fast` to allow snapshot/git, or try a `-bin`/`-appimage` variant.
 \- **“PKGBUILD not found at '<path>/PKGBUILD' (mode=..., pkg=...)”**  
   Run without `--fast` to allow snapshot/git fallback. If it still fails, please open an issue and include the path shown.
 
@@ -579,19 +718,19 @@ flowchart TD
 
 ```bash
 # Verify and install (normal)
-sh ./aur_verify_then_yay.sh <package>
+sh ./bin/aur-verify <package>
 
 # Verify only
-sh ./aur_verify_then_yay.sh --verify-only <package>
+sh ./bin/aur-verify --verify-only <package>
 
 # Strict mode (whitelisted domains, no weak sums, PGP when .sig exists)
-STRICT=1 sh ./aur_verify_then_yay.sh <package>
+STRICT=1 sh ./bin/aur-verify <package>
 
 # Fast metadata-only verification
-FAST=1 sh ./aur_verify_then_yay.sh <package>
+FAST=1 sh ./bin/aur-verify <package>
 
 # From GitHub: locate AUR wrapper and verify/install
-sh ./aur_verify_then_yay.sh https://github.com/OWNER/REPO
+sh ./bin/aur-verify https://github.com/OWNER/REPO
 ```
 
 ---
