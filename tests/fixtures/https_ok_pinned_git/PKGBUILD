@@ -1,0 +1,18 @@
+pkgname=https-ok-pinned-git
+pkgver=1.0
+pkgrel=1
+pkgdesc="Fixture: https source and pinned git"
+url="https://github.com/example/repo"
+license=('MIT')
+
+source=(
+  "https://github.com/example/repo/archive/refs/tags/v${pkgver}.tar.gz"
+  "git+https://github.com/example/repo.git#commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+
+sha256sums=('SKIP' 'SKIP')
+
+prepare() {
+  :
+}
+

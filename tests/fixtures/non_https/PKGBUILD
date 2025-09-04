@@ -1,0 +1,17 @@
+pkgname=non-https
+pkgver=1.0
+pkgrel=1
+pkgdesc="Fixture: non-HTTPS source"
+url="http://example.com/non-https"
+license=('MIT')
+
+source=(
+  "http://example.com/file.tar.gz"
+)
+
+sha256sums=('SKIP')
+
+build() {
+  :
+}
+
