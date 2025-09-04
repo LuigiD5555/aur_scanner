@@ -4,18 +4,40 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LIB_DIR="$SCRIPT_DIR/../lib"
 
 # Load libs
-source "$LIB_DIR/common.sh"
-source "$LIB_DIR/log.sh"
-source "$LIB_DIR/aur_plain.sh"   # AUR RPC/plain helpers needed early for search
-source "$LIB_DIR/yay.sh"
-source "$LIB_DIR/github.sh"
-source "$LIB_DIR/search.sh"
-source "$LIB_DIR/pkgb.sh"
-source "$LIB_DIR/js.sh"
-source "$LIB_DIR/i18n.sh"
-source "$LIB_DIR/report.sh"
-source "$LIB_DIR/verify_rules.sh"
-source "$LIB_DIR/verify.sh"
+# Prefer sourcing submodules directly (keeping facades for compatibility)
+source "$LIB_DIR/core/shell_safety.sh"
+source "$LIB_DIR/utils/logging.sh"
+source "$LIB_DIR/aur/fetch_plain_and_snapshot.sh"
+# Optional helper metadata (supports showing repo info in verify-only)
+if [ -f "$LIB_DIR/helpers/yay_query.sh" ]; then
+  source "$LIB_DIR/helpers/yay_query.sh"
+else
+  # Safe stubs when helper metadata is unavailable
+  yay_query_any() { return 1; }
+  yay_field() { return 1; }
+  yay_repo_of() { return 1; }
+  yay_exists_any() { return 1; }
+  yay_exists_aur() { return 1; }
+fi
+source "$LIB_DIR/github/derive_candidates_from_repo.sh"
+source "$LIB_DIR/aur/search_and_resolve.sh"
+source "$LIB_DIR/pkgb/aggregate_pkgb_helpers.sh"
+# Optional JS parser helpers
+if [ -f "$LIB_DIR/js.sh" ]; then
+  source "$LIB_DIR/js.sh"
+else
+  # Safe stubs when JS helpers are absent
+  js_parser_available() { return 1; }
+  js_pkgb_parse_summary() { :; }
+  js_pkgb_signals() { :; }
+  js_pkgb_redflags_lines() { :; }
+  js_pkgb_redflags_count() { echo 0; }
+  js_pkgb_sources_compact() { :; }
+fi
+source "$LIB_DIR/i18n/messages.sh"
+source "$LIB_DIR/report/render_summary.sh"
+source "$LIB_DIR/verify/rules.sh"
+source "$LIB_DIR/verify/runner.sh"
 
 # Defaults (can be overridden via env)
 YAY_BIN="${YAY_BIN:-yay}"
@@ -36,6 +58,7 @@ main() {
   while [ $# -gt 0 ]; do
     case "$1" in
       --verify-only) VERIFY_ONLY=1; shift; continue;;
+      --deep)        DEEP=1; shift; continue;;
       --fast)        FAST=1; shift; continue;;
       --strict)      STRICT=1; shift; continue;;
       --verbose)     VERBOSE=1; shift; continue;;
