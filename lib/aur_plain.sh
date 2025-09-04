@@ -127,6 +127,15 @@ aur_plain_rpc_info_live() { # $1=pkg -> prints JSON or nothing
   curl "${CURL_OPTS[@]}" "https://aur.archlinux.org/rpc/v5/info/$pkg" 2>/dev/null || true
 }
 
+# aur_plain_exists — quick existence probe via plain endpoint (fast, low-bytes)
+aur_plain_exists() { # $1=pkg -> 0 if plain PKGBUILD is reachable
+  local pkg="$1"; local CURL_OPTS
+  CURL_OPTS=(--fail --silent --show-error --location --compressed --connect-timeout 3 --max-time 6)
+  # Try a quick ranged GET to minimize bytes
+  curl "${CURL_OPTS[@]}" -H 'Range: bytes=0-64' \
+    "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=$pkg" >/dev/null 2>&1
+}
+
 # aur_plain_rpc_search — fast AUR name search (cached)
 # Usage: aur_plain_rpc_search <term>
 # Prints candidate package names (one per line)

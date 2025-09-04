@@ -143,6 +143,10 @@ resolve_pkg() { # $1=input -> print AUR pkg (stdout only)
      && printf '%s' "$info2" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'$base'"'; then
     printf '%s\n' "$base"; return 0
   fi
+  # If RPC was flakey, do a lightweight existence probe via plain endpoint
+  if aur_plain_exists "$base"; then
+    printf '%s\n' "$base"; return 0
+  fi
   # Then try the remaining candidates
   rest=("${candidates[@]:1}")
   for c in "${rest[@]}"; do
