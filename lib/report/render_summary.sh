@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # render_summary.sh — Simple reporting for verification results (uses i18n messages)
 
 report_init() {
@@ -42,4 +44,3 @@ report_print() { # $1=install|verify-only
   fi
   printf '%s\n\n' "$(i18n_translate_misc bar_end)" >&2
 }
-

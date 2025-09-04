@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # redflags_rule.sh — static red flags handling (JS preferred when available)
 
 rule_red_flags() { # $1=pkgb $2=strict
@@ -43,4 +45,3 @@ EOF
     report_add "item_red_flags" "PASS" "redflags_ok"; return 0
   fi
 }
-

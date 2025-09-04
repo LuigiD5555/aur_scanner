@@ -2,17 +2,30 @@
 
 > **Verify first, install later** — Security checker for AUR packages (and GitHub wrappers) with automatic installation via `yay` only if everything passes.
 
-<p align="left">
-  <code>Arch</code> · <code>AUR</code> · <code>makepkg --verifysource</code> · <code>PGP</code> · <code>sha256</code> · <code>yay</code>
-</p>
+<div align="left">
+  <img alt="Bash" src="https://img.shields.io/badge/Bash-4EAA25?logo=gnu-bash&logoColor=white" />
+  <img alt="Arch Linux" src="https://img.shields.io/badge/Arch_Linux-1793D1?logo=archlinux&logoColor=white" />
+  <img alt="AUR" src="https://img.shields.io/badge/AUR-1793D1?logo=archlinux&logoColor=white" />
+  <img alt="makepkg --verifysource" src="https://img.shields.io/badge/makepkg--verifysource-enabled-blue" />
+  <img alt="PGP" src="https://img.shields.io/badge/PGP-verification-informational?logo=gnupg&logoColor=white" />
+  <img alt="sha256" src="https://img.shields.io/badge/checksums-sha256-success" />
+  <img alt="yay" src="https://img.shields.io/badge/helper-yay-0A0A0A" />
+</div>
 
 ---
 
-🌐 Lea esto en [Español](README.es.md)
+Read this in Spanish: `docs/es/README.md`
 
 ---
 
-## 🧭 What does this tool do?
+## Documentation
+
+- Docs index: `docs/README.md`
+- Developer docs: `docs/developer/README.md` (English) · `docs/developer/README.es.md` (Español)
+
+---
+
+## What does this tool do?
 
 This Bash tool takes an AUR package name **or** a GitHub URL and:
 
@@ -27,7 +40,7 @@ This Bash tool takes an AUR package name **or** a GitHub URL and:
 
 ---
 
-## 🚀 Quick start
+## Quick start
 
 Run it via the modular entrypoint (recommended):
 
@@ -90,7 +103,7 @@ pamac build oreo-nord-cursors-git
 
 ---
 
-## 🧰 Intercepting wrapper (aur-guard)
+## Intercepting wrapper (aur-guard)
 
 If you want a pre-check before using your usual AUR helpers (yay/paru/pamac), use the universal wrapper and put it at the beginning of your PATH.
 
@@ -159,7 +172,7 @@ Developer note: helper list (extendable)
 
 ---
 
-## 📦 Requirements
+## Requirements
 
 - Arch Linux or derivative with AUR access.  
 - Tools: `git`, `curl`, `makepkg` (part of `pacman`), and an AUR helper: `yay` (default).  
@@ -171,7 +184,7 @@ Developer note: helper list (extendable)
 
 ---
 
-## 🔧 Options and variables
+## Options and variables
 
 **Flags**:
 
@@ -202,7 +215,7 @@ Reporting and language:
 
 ---
 
-## 🧪 Verification modes and depth
+## Verification modes and depth
 
 Use these knobs to control how deep the verification goes and how much is shown:
 
@@ -229,12 +242,12 @@ Notes
 
 ---
 
-## 🧩 Node CLI: pkgb-parse (optional)
+## Node CLI: pkgb-parse (optional)
 
 The project ships a modular Node.js CLI to parse PKGBUILD files quickly and feed extra signals into the Bash reports. It is optional: if Node is unavailable, Bash uses grep/awk heuristics.
 
 - Entry point: `bin/pkgb-parse`
-- Modules: `lib/pkgb/parser/{analysis,utils,outputs,patterns,terminalColors}.js`
+ 
 
 Examples:
 
@@ -266,7 +279,7 @@ Tip: If you pass an AUR link that is not the plain endpoint, the CLI will sugges
 
 ---
 
-## ✅ What it checks
+## What it checks
 
 ### 1) Red flags in `PKGBUILD` (static)
 
@@ -362,7 +375,7 @@ Language control:
 
 ---
 
-## 🧩 How it decides to install
+## How it decides to install
 
 - **Input = AUR package name**  
 
@@ -388,7 +401,7 @@ Language control:
 
 ---
 
-## 🔎 Input detection (autodetect)
+## Input detection (autodetect)
 
 - AUR package URL (`https://aur.archlinux.org/packages/<name>`): extracts `<name>` and fetches from AUR snapshot/plain.
 - GitHub URL: derives likely AUR wrapper names (repo title + repo name, plus `-git`/`-bin`/`-appimage`), validates against AUR.
@@ -396,7 +409,7 @@ Language control:
 
 This approach minimizes trust on local heuristics and uses AUR’s official endpoints wherever possible.
 
-## 📚 Examples
+## Examples
 
 Verify and install a cursor from AUR (if it exists):
 
@@ -430,263 +443,12 @@ FAST=1 sh ./bin/aur-verify <package>
 
 ---
 
-## 🧠 Architecture
+## Architecture
 
-### Modular layout
-
-- `bin/aur-verify`: CLI entrypoint that loads modules and orchestrates the flow.
-- Core: `lib/core/shell_safety.sh` and `lib/utils/logging.sh`.
-- AUR fetchers: `lib/aur/fetch_plain_and_snapshot.sh` (plain/snapshot; RPC helpers).
-- AUR search/resolve: `lib/aur/search_and_resolve.sh` (strict name search and resolver).
-- Repository metadata: optional via `$YAY_BIN -Si` when available (no helper file needed).
-- GitHub candidates: `lib/github/derive_candidates_from_repo.sh` (URL parsing + README/title scraping).
-- PKGBUILD helpers: `lib/pkgb/aggregate_pkgb_helpers.sh` (agrupa: sources, checksums, redflags, summaries).
-- Verify rules: `lib/verify/rules.sh` (agrupa reglas atómicas: VCS pinning, sources, checksums, redflags, verifysource).
-- Verify runner: `lib/verify/runner.sh` (orquesta la verificación e instalación opcional).
-- i18n: `lib/i18n/messages.sh` (en/es).
-- Report: `lib/report/render_summary.sh` (resumen final localizado).
-  (The previous legacy wrapper `aur_verify_then_yay.sh` has been removed; use `bin/aur-verify`.)
-
-<details>
-<summary><strong>Full Module Reference (Bash and JS)</strong></summary>
-
-Bash
-
-- Core and Logging
-  - `lib/core/shell_safety.sh`: strict Bash settings, `have_cmd`, `require_tools`.
-  - `lib/utils/logging.sh`: `log_info`, `log_warn`, `log_error`, `die`.
-- AUR and GitHub
-  - `lib/aur/fetch_plain_and_snapshot.sh`: `aur_plain_fetch_plain_files`, `aur_plain_fetch_repo`, `aur_plain_rpc_*`.
-  - `lib/aur/search_and_resolve.sh`: `resolve_pkg`, strict AUR name search and resolver.
-  - Repository metadata is read opportunistically via `$YAY_BIN -Si` when present.
-  - `lib/github/derive_candidates_from_repo.sh`: URL parsing, README/title scraping, candidates.
-- PKGBUILD helpers
-  - `lib/pkgb/sources_and_domains.sh`: `list_sources`, HTTPS/domains checks.
-  - `lib/pkgb/checksums_policy.sh`: `has_strong_sums`, `has_weak_or_skip`, `rewrite_sums_to_sha256`.
-  - `lib/pkgb/redflags_scan.sh`: `scan_red_flags` from shared list.
-  - `lib/pkgb/functions_summary.sh`: `print_func_summaries`.
-  - `lib/pkgb/aggregate_pkgb_helpers.sh`: aggregates above and `pkgb_check_vcs_pinning`.
-- Verification
-  - `lib/verify/rules.sh`: aggregates `lib/verify/rules/*.sh`.
-  - Rules: `vcs_pinning_rule.sh`, `sources_rule.sh`, `checksums_rule.sh`, `redflags_rule.sh`, `verifysource_rule.sh`.
-  - `lib/verify/runner.sh`: `verify_pkgbuild`, `install_or_verify`, `aur_checkout_to`.
-- i18n and Reporting
-  - `lib/i18n/messages.sh`: translations (en/es).
-  - `lib/report/render_summary.sh`: final localized summary.
-
-JavaScript (Node)
-
-- Parser composition: `lib/pkgb/parser/parser/composePkgbuildParser.js` (exports `parsePKGBUILD`).
-- Spider/crawler: `lib/pkgb/parser/parser/spider/{crawlPkgbuildAndEmitHooks,scanBalancedParentheses,scanBalancedCurlyBraces}.js`.
-- Helpers: `lib/pkgb/parser/parser/{extractPkgbuildArraysAndMapFields,extractScalarsToMetaAndChecksums,analyzeSourcesResolvePinsAndDomains,computeRiskScoresAndSeverity}.js`.
-- Patterns: `lib/pkgb/parser/patterns/{compileRegexPatterns.js,modules/loadSharedRedflags.js}`.
-- Outputs: `lib/pkgb/parser/outputs/modules/{renderDetailedAnalysis,renderSummaryLine,renderSignalsKeyValue,renderRedflagsLines,renderCompactSources}.js`.
-- Utils: `lib/pkgb/parser/utils/modules/{parseShellStyleTokensAndStripComments,networkFetch,stdinRead}.js`.
-- Colors: `lib/pkgb/parser/terminalColors.js`. Facade: `lib/pkgb/parser/analysis.js`.
-
-</details>
-
-Key recent improvements
-
-- Robust GitHub repo parsing with a safe fallback even for edge URLs.
-- Name-strict AUR search implemented on top of `yay -Ss` output, filtered to `aur/…` entries.
-- Guaranteed non-empty candidate lists to avoid empty search terms.
-
-<details>
-<summary><strong>Refactors for readability and testing</strong></summary>
-
-- Autodetection prefers AUR snapshot/plain; shallow git clone is only a fallback.
-- Verification logic split into small, testable rules in `lib/verify/rules.sh`.
-- Final report and translations live in `lib/report/render_summary.sh` + `lib/i18n/messages.sh`.
-- Easier to unit‑test each rule in isolation by providing a `PKGBUILD` path and mode.
-
-</details>
-
-<details>
-<summary><strong>Function Reference (concise)</strong></summary>
-
-- Runner: `verify_pkgbuild`, `install_or_verify`, `aur_checkout_to`.
-- Rules: `rule_vcs_pinning`, `rule_sources`, `rule_checksums`, `rule_verifysource` (and `rule_red_flags` available; diagnostics only in current runner).
-- PKGB helpers: `list_sources`, `sources_have_only_https`, `sources_domains_allowed`, `has_strong_sums`, `has_weak_or_skip`, `rewrite_sums_to_sha256`, `scan_red_flags`, `print_func_summaries`, `pkgb_check_vcs_pinning`.
-- AUR/GitHub + resolver: `aur_plain_fetch_*`, `aur_plain_rpc_*`, `resolve_pkg`, `aur_search_name_strict_aur_only`, `prefer_fast_variant`, `is_github_url`, `build_candidates_from_github`.
-
-</details>
-
-<details>
-<summary><strong>Overview of the flow (Mermaid)</strong></summary>
-
-```mermaid
-%%{init: {"theme": "forest", "handDrawn": true}}%%
-sequenceDiagram
-    participant User as User
-    participant CLI as CLI bin/aur-verify
-    participant GitHub as GitHub lib/github/derive_candidates_from_repo.sh
-    participant Search as AUR Resolver lib/aur/search_and_resolve.sh
-    participant Plain as AUR Plain/RPC lib/aur/fetch_plain_and_snapshot.sh
-    participant Verify as Verifier lib/verify/runner.sh
-    participant Rules as Rules lib/verify/rules.sh
-    participant PKGB as PKGB Utils lib/pkgb/aggregate_pkgb_helpers.sh
-    participant Report as Report lib/report/render_summary.sh + lib/i18n/messages.sh
-    participant Makepkg as makepkg
-    participant Yay as yay
-
-    User->>CLI: Run bin/aur-verify <input>
-
-    %% Input detection
-    rect rgba(200, 200, 255, 0.35)
-    CLI->>CLI: Detect input type
-    alt AUR URL
-        CLI->>Plain: Extract name and query RPC v5
-        Plain-->>CLI: pkg
-    else GitHub URL
-        CLI->>GitHub: Derive candidates title/README
-        GitHub-->>CLI: Candidate list
-        CLI->>Search: Validate on AUR name‑strict
-        Search-->>CLI: pkg
-    else PackageName
-        CLI->>Plain: RPC v5 info exact match
-        alt Exact match
-            Plain-->>CLI: pkg
-        else No exact match
-            CLI->>Search: Strict search yay -Ss AUR only
-            Search-->>CLI: pkg
-        end
-    end
-    end
-
-    %% Fetch PKGBUILD
-    rect rgba(200, 255, 200, 0.35)
-    CLI->>Verify: verify_pkgbuild pkg
-    Verify->>Plain: Download snapshot/plain PKGBUILD and .SRCINFO
-    alt Plain OK
-        Plain-->>Verify: Temp path with PKGBUILD
-    else Fallback to git
-        Verify->>Plain: Plain snapshot failed
-        Verify->>CLI: git clone from AUR
-        CLI-->>Verify: Cloned repo with PKGBUILD
-    end
-    Note over Verify: Show PREPARE/BUILD/PACKAGE summaries (Verbose or SHOW_FUNCS)
-    end
-
-    %% Static verification atomic rules
-    rect rgba(255, 255, 200, 0.35)
-    Verify->>Rules: rule_vcs_pinning PKGBUILD
-    Rules->>PKGB: pkgb_check_vcs_pinning
-    PKGB-->>Rules: Result
-    Rules-->>Report: report_add item_vcs_pinning
-
-    Verify->>Rules: rule_sources PKGBUILD
-    Rules->>PKGB: list_sources + HTTPS and whitelist checks
-    PKGB-->>Rules: Result
-    Rules-->>Report: report_add item_source_urls / item_allowed_domains
-    Note over Rules,Report: Default → only offending lines; Verbose → show all sources and mark offenders
-
-    Verify->>Rules: rule_checksums PKGBUILD checkout
-    Rules->>PKGB: has_weak_or_skip / has_strong_sums
-    opt Auto‑fix allowed
-        Rules->>Verify: rewrite_sums_to_sha256
-    end
-    Rules-->>Report: report_add item_checksums
-    Note over Rules,Report: Default → only weak/SKIP lines; Verbose → show all checksum arrays and mark weak/SKIP
-
-    Note over Verify: In --verbose, JS prints red-flag lines (diagnostic only)
-    end
-
-    %% Deep verification optional
-    rect rgba(255, 220, 200, 0.35)
-    alt VERIFY-ONLY without DEEP
-        Verify->>Rules: rule_verifysource mode verify-only
-        Rules-->>Report: SKIP verify‑only
-    else FAST
-        Verify->>Rules: rule_verifysource mode fast
-        Rules-->>Report: SKIP --fast
-    else FULL
-        Verify->>Makepkg: makepkg --verifysource no build
-        Makepkg-->>Verify: OK / FAIL
-        Verify->>Rules: rule_verifysource mode full
-        Rules-->>Report: PASS / WARN / FAIL
-    end
-    end
-
-    %% Report and install
-    rect rgba(230, 200, 255, 0.35)
-    Verify->>Report: report_print mode
-    alt OVERALL OK or OK with warnings and not verify-only
-        CLI->>Yay: yay -S pkg
-        Yay-->>CLI: Installation completed
-    else OVERALL FAIL or verify-only
-        CLI-->>User: Do not install / Verification only
-    end
-    Note over CLI,Report: Quiet → suppress info/warn logs; summary remains visible
-    end
-```
-
-</details>
-
-<details>
-<summary><strong>Autodetection and Fetch (Mermaid)</strong></summary>
-
-```mermaid
-%%{init: {"theme": "forest", "handDrawn": true}}%%
-flowchart TD
-    A[Input: AUR URL / GitHub URL / PackageName]
-    B{Type?}
-    A --> B
-    B -->|AUR URL| C[Extract <name> from URL]
-    C --> H[Package name]
-    B -->|GitHub URL| D[Derive candidates from README/title]
-    D --> E[Strict AUR validation via lib/search.sh]
-    E --> H
-    B -->|Name| F{AUR RPC exact match?}
-    F -->|Yes| H
-    F -->|No| G[Strict name search via yay -Ss <AUR only>]
-    G --> H
-
-    H --> I{Fetch PKGBUILD}
-    I -->|Plain OK| J[AUR snapshot/plain <no git>]
-    I -->|Plain failed| K[Shallow git clone from AUR]
-    J --> L[Static checks <rules>]
-    K --> L
-
-    classDef ok fill:#e0ffe0,stroke:#9acd32,stroke-width:1px;
-    classDef alt fill:#e6f0ff,stroke:#4f81bd,stroke-width:1px;
-    classDef warn fill:#fff7cc,stroke:#ffc107,stroke-width:1px;
-    class J ok;
-    class K alt;
-    class L warn;
-```
-
-</details>
-
-<details>
-<summary><strong>Key modules (high level)</strong></summary>
-
-- GitHub candidates: `lib/github/derive_candidates_from_repo.sh`
-- AUR search/resolve: `lib/aur/search_and_resolve.sh`
-- PKGBUILD helpers: `lib/pkgb/aggregate_pkgb_helpers.sh`
-- Verify runner: `lib/verify/runner.sh`
-- Verify rules: `lib/verify/rules.sh`
-- AUR fetchers: `lib/aur/fetch_plain_and_snapshot.sh`
-- i18n: `lib/i18n/messages.sh`
-- Report: `lib/report/render_summary.sh`
-  - Repository metadata via `$YAY_BIN -Si` when available
-- Node CLI: `bin/pkgb-parse` + `lib/pkgb/parser/*`
-
-</details>
-
-<details>
-<summary><strong>Technical details (for the curious)</strong></summary>
-
-- Checksum rewriting: downloads declared sources, computes `sha256`, and rewrites `sha256sums=()` replacing weak sums (when allowed).  
-- Function summaries: prints first lines of `prepare()`, `build()`, `package()` for quick inspection (with `STRICT=1`, unless `--fast`).  
-- Error diagnostics: explicit paths/modes in “PKGBUILD not found …” and actionable hint when `FAST=1` blocks plain fetch fallback.  
-- Messages: `[INFO]`, `[WARN]`, `[ERROR]` prefixes for clarity; non‑zero exit on failures.
-
-</details>
+Developer documentation has moved to `docs/developer/README.md`. See that file for code structure, modules, internals, and diagrams.
 
 ---
-
-## 🔐 Security notes
+## Security notes
 
 - This script **does not build** the package during verification (uses `makepkg --verifysource`).  
 - It does **not** bypass AUR policies: it automates usual controls (and adds stricter rules if you ask).  
@@ -695,7 +457,7 @@ flowchart TD
 
 ---
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 - **“AUR clone failed (package may not exist)”**  
 
@@ -714,7 +476,7 @@ flowchart TD
 
 ---
 
-## 🧪 Copy‑paste examples
+## Copy‑paste examples
 
 ```bash
 # Verify and install (normal)
@@ -735,12 +497,57 @@ sh ./bin/aur-verify https://github.com/OWNER/REPO
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
+This project is licensed under CC BY‑NC‑SA 4.0. See [LICENSE](LICENSE).
 
 ---
 
 ### Credits
 
 Maintained by the project contributors. See [AUTHORS](AUTHORS) for credits and acknowledgements.
+
+---
+
+## Appendix: CC BY‑NC‑SA 4.0 quick reference
+
+This repository uses Creative Commons BY‑NC‑SA 4.0. The following is a quick reference for attribution and scope.
+
+1) Confirm it matches your goals
+
+- Allows personal, educational, and community use.  
+- Allows modifications (derivative works).  
+- Prohibits commercial use without your permission.  
+- Requires sharing derivatives under the same license (ShareAlike).  
+- Requires attribution to the original author.
+
+2) Generate the legal text and official icon
+
+- Visit the Creative Commons license chooser and select:  
+  - “Allow adaptations of your work” → “Yes, as long as others share alike”  
+  - “Allow commercial uses of your work” → “No”  
+- The site will provide:  
+  - The standard legal text  
+  - An official icon (SVG/PNG)  
+  - A permanent link to the license page
+
+3) Attribution template
+
+- README snippet:
+
+```markdown
+This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+© 2025 Luigi. Non‑commercial use allowed with attribution and ShareAlike.
+```
+
+- Source header (optional):
+
+```bash
+# License: CC BY-NC-SA 4.0 — © 2025 Luigi
+# Non‑commercial use permitted with attribution and ShareAlike.
+```
+
+4) Traceability
+
+- Keep `LICENSE` up to date with the current license.  
+- Consider signing release tags and the license‑change commit if you use GPG.

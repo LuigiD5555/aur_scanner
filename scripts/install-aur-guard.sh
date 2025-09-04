@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # install-aur-guard.sh — Set up aur-guard symlinks automatically
 
 set -euo pipefail

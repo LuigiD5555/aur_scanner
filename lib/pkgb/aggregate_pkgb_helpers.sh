@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # aggregate_pkgb_helpers.sh — aggregates PKGBUILD helper functions
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -31,4 +33,3 @@ $sources
 EOF
   return $unpinned
 }
-

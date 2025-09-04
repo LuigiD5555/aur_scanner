@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # derive_candidates_from_repo.sh — GitHub URL parsing and README/title based candidates
 
 is_github_url() { [[ "$1" =~ ^https?://github\.com/[^/]+/[^/]+(\.git)?/?$ ]]; }
@@ -66,4 +68,3 @@ build_candidates_from_github() { # $1=url
   [ "${#out[@]}" -eq 0 ] && out=("$repo_kebab")
   printf '%s\n' "${out[@]}" | awk '!seen[$0]++'
 }
-

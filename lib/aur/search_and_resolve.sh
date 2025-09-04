@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # search_and_resolve.sh — strict AUR search and resolver helpers
 
 prefer_fast_variant() { awk '{a[NR]=$0} END {for(i=1;i<=NR;i++) if (a[i] ~ /-bin$/ || a[i] ~ /-appimage$/) print a[i]; for(i=1;i<=NR;i++) if (!(a[i] ~ /-bin$/ || a[i] ~ /-appimage$/)) print a[i] }'; }
@@ -57,4 +59,3 @@ resolve_pkg() { # $1=input -> print AUR pkg (stdout only)
   [ "${#hits[@]}" -eq 1 ] && { printf '%s\n' "${hits[0]}"; return 0; }
   log_info "Multiple AUR candidates after strict filtering."; local chosen; if chosen="$(printf '%s\n' "${hits[@]}" | select_from_list)"; then printf '%s\n' "$chosen"; return 0; else return 1; fi
 }
-

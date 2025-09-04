@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # functions_summary.sh — extract prepare/build/package() function snippets
 
 print_func_summaries() {
@@ -10,4 +12,3 @@ print_func_summaries() {
     inp||inb||inpkg { print }
   ' "$1" | sed 's/^[[:space:]]\{0,2\}//'
 }
-

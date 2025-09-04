@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # redflags_scan.sh — scan PKGBUILD for red flag patterns using shared list
 
 scan_red_flags() { # PKGBUILD path
@@ -37,4 +39,3 @@ scan_red_flags() { # PKGBUILD path
       "$pkgb" || true
   fi
 }
-

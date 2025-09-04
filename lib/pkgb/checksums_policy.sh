@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # checksums_policy.sh — checksum detection and rewrite helpers
 
 has_strong_sums() { grep -Eq '^[[:space:]]*(sha256sums|sha512sums)='; }
@@ -23,4 +25,3 @@ rewrite_sums_to_sha256() { # dir with PKGBUILD
     ' PKGBUILD > PKGBUILD.new && mv PKGBUILD.new PKGBUILD
   )
 }
-

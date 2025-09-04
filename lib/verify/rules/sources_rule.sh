@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # sources_rule.sh — enforce HTTPS-only and allowed domains
 
 rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
@@ -38,4 +40,3 @@ rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
     report_add "item_allowed_domains" "PASS" "domains_ok"
   fi
 }
-

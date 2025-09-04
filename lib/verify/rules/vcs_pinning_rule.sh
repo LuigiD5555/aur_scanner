@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # vcs_pinning_rule.sh — enforce VCS pinning for git+ sources
 
 rule_vcs_pinning() { # $1=pkgb $2=strict -> sets report items
@@ -13,4 +15,3 @@ rule_vcs_pinning() { # $1=pkgb $2=strict -> sets report items
     report_add "item_vcs_pinning" "PASS" "vcs_pinned_ok"; return 0
   fi
 }
-

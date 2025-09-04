@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # checksums_rule.sh — enforce checksum policy and optional rewrite
 
 rule_checksums() { # $1=pkgb $2=checkout $3=strict $4=fast
@@ -44,4 +46,3 @@ rule_checksums() { # $1=pkgb $2=checkout $3=strict $4=fast
     fi
   fi
 }
-

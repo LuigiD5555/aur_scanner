@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # validate-sources.sh — checks that sourced files exist after refactors
 set -euo pipefail
 shopt -s nullglob
@@ -44,4 +46,3 @@ PY
 done < <(find "$root_dir/bin" "$root_dir/lib" -type f -name '*.sh' -print0)
 
 exit $fail
-

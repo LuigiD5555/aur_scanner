@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# Copyright (c) 2025 José Luis López López Prieto
 # fetch_plain_and_snapshot.sh — AUR plain/snapshot fetchers and RPC helpers
 
 aur_plain_snapshot_url() { # $1=pkg
@@ -86,4 +88,3 @@ aur_plain_rpc_search() { # $1=term -> print candidate package names (one per lin
   [ -s "$f" ] || return 1
   grep -o '"Name":"[^"]\+"' "$f" | sed 's/.*:"//;s/"$//' | sort -u
 }
-
