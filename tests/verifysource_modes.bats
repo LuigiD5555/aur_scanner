@@ -3,11 +3,11 @@
 setup() {
   REPO_DIR="$(cd -- "$(dirname -- "${BATS_TEST_FILENAME}")"/.. && pwd)"
   LIB="$REPO_DIR/lib"
-  source "$LIB/common.sh"
-  source "$LIB/log.sh"
-  source "$LIB/pkgb.sh"
-  source "$LIB/verify_rules.sh"
-  source "$LIB/verify.sh"
+  source "$LIB/core/shell_safety.sh"
+  source "$LIB/utils/logging.sh"
+  source "$LIB/pkgb/aggregate_pkgb_helpers.sh"
+  source "$LIB/verify/rules.sh"
+  source "$LIB/verify/runner.sh"
 }
 
 @test "verifysource: skip in verify-only mode" {
@@ -23,4 +23,3 @@ setup() {
   rule_verifysource "$dir" fast 0
   printf '%s\n' "${REPORT_ITEMS[@]}" | grep -q 'item_makepkg_verifysource|SKIP|verifysource_skip_fast'
 }
-

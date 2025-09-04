@@ -3,11 +3,11 @@
 setup() {
   REPO_DIR="$(cd -- "$(dirname -- "${BATS_TEST_FILENAME}")"/.. && pwd)"
   LIB="$REPO_DIR/lib"
-  source "$LIB/common.sh"
-  source "$LIB/log.sh"
-  source "$LIB/pkgb.sh"
-  source "$LIB/verify_rules.sh"
-  source "$LIB/verify.sh"
+  source "$LIB/core/shell_safety.sh"
+  source "$LIB/utils/logging.sh"
+  source "$LIB/pkgb/aggregate_pkgb_helpers.sh"
+  source "$LIB/verify/rules.sh"
+  source "$LIB/verify/runner.sh"
 }
 
 @test "sources: https and allowed domains pass" {
@@ -18,4 +18,3 @@ setup() {
   printf '%s\n' "${REPORT_ITEMS[@]}" | grep -q 'item_source_urls|PASS|urls_https_ok'
   printf '%s\n' "${REPORT_ITEMS[@]}" | grep -q 'item_allowed_domains|PASS|domains_ok'
 }
-

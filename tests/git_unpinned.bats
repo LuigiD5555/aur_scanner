@@ -3,11 +3,11 @@
 setup() {
   REPO_DIR="$(cd -- "$(dirname -- "${BATS_TEST_FILENAME}")"/.. && pwd)"
   LIB="$REPO_DIR/lib"
-  source "$LIB/common.sh"
-  source "$LIB/log.sh"
-  source "$LIB/pkgb.sh"
-  source "$LIB/verify_rules.sh"
-  source "$LIB/verify.sh"
+  source "$LIB/core/shell_safety.sh"
+  source "$LIB/utils/logging.sh"
+  source "$LIB/pkgb/aggregate_pkgb_helpers.sh"
+  source "$LIB/verify/rules.sh"
+  source "$LIB/verify/runner.sh"
 }
 
 @test "vcs pinning: unpinned warns non-strict" {
@@ -23,4 +23,3 @@ setup() {
   STRICT=1 VERBOSE=0 QUIET=1 ! rule_vcs_pinning "$pkgb" 1
   printf '%s\n' "${REPORT_ITEMS[@]}" | grep -q 'item_vcs_pinning|FAIL|vcs_unpinned_fail'
 }
-
