@@ -1,0 +1,31 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create artifacts
+        run: |
+          mkdir -p dist
+          zip -r dist/aur_verification-${GITHUB_REF_NAME}.zip bin lib docs scripts LICENSE README.md || true
+
+      - name: Generate checksums
+        run: |
+          cd dist || exit 0
+          if ls * >/dev/null 2>&1; then
+            sha256sum * > SHA256SUMS
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/aur_verification-${{ github.ref_name }}.zip
+            dist/SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,28 @@
+name: Fix README links on release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  fix-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch README links to development
+        run: |
+          OWNER_REPO="${GITHUB_REPOSITORY}"
+          DEV_BRANCH="development"
+          for f in README.md docs/es/README.es.md; do
+            test -f "$f" || continue
+            sed -i "s|%%OWNER%%/%%REPO%%|${OWNER_REPO}|g" "$f"
+            sed -i "s|/blob/[^/]*/docs/developer/|/blob/${DEV_BRANCH}/docs/developer/|g" "$f"
+          done
+
+      - name: Commit changes (no-op if none)
+        run: |
+          git config user.name "ci-bot"
+          git config user.email "actions@github.com"
+          git add README.md docs/es/README.es.md || true
+          git commit -m "ci: fix README links to development on release" || echo "No changes"
+          git push || true

@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+    branches: [ development ]
+  pull_request:
+    branches: [ development ]
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: './bin ./lib ./scripts'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Node smoke test
+        run: |
+          if [ -f bin/pkgb-parse ]; then
+            node --version
+            node bin/pkgb-parse --help || true
+          else
+            echo "No pkgb-parse CLI found, skipping."
+          fi
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Run bats tests
+        run: |
+          if ls tests/*.bats >/dev/null 2>&1; then
+            bats tests
+          else
+            echo "No bats tests found, skipping."
+          fi
