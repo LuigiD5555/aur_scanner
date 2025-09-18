@@ -32,10 +32,5 @@ jobs:
       - name: Install bats
         run: sudo apt-get update && sudo apt-get install -y bats
 
-      - name: Run bats tests
-        run: |
-          if ls tests/*.bats >/dev/null 2>&1; then
-            bats tests
-          else
-            echo "No bats tests found, skipping."
-          fi
+      - name: Run test suite
+        run: bash scripts/run-tests.sh
