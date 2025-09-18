@@ -7,7 +7,8 @@
 list_sources() {
   sed -n "s/^[[:space:]]*source[[:space:]]*=[[:space:]]*(\(.*\))/\1/p" \
     | tr ' ' '\n' | tr -d "\"'" \
-    | sed "s/[()']//g" | grep -E '^(https?|git|ftp)://|::https?://|::git://'
+    | sed "s/[()']//g" | sed 's/^git+https:/https:/' \
+    | grep -E '^(https?|git|ftp)://|::https?://|::git://'
 }
 
 sources_have_only_https() { awk '!/^https:\/\// {bad=1} END{exit bad}'; }

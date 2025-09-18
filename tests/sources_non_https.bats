@@ -6,6 +6,7 @@ setup() {
   source "$LIB/core/shell_safety.sh"
   source "$LIB/utils/logging.sh"
   source "$LIB/report/render_summary.sh"
+  source "$LIB/pkgb/js_parser_bridge.sh"
   source "$LIB/pkgb/aggregate_pkgb_helpers.sh"
   source "$LIB/verify/verification_rules_loader.sh"
   source "$LIB/verify/aur_verification_orchestrator.sh"
@@ -14,13 +15,19 @@ setup() {
 @test "sources: non-https warns in non-strict" {
   local pkgb="$REPO_DIR/tests/fixtures/non_https/PKGBUILD"
   report_init
-  STRICT=0 VERBOSE=0 QUIET=1 rule_sources "$pkgb" 0
+  STRICT=0 VERBOSE=0 QUIET=1
+  local status=0
+  rule_sources "$pkgb" 0 || status=$?
+  [ "$status" -eq 0 ]
   printf '%s\n' "${REPORT_ITEMS[@]}" | grep -q 'item_source_urls|WARN|urls_https_warn'
 }
 
 @test "sources: non-https fails in strict" {
   local pkgb="$REPO_DIR/tests/fixtures/non_https/PKGBUILD"
   report_init
-  STRICT=1 VERBOSE=0 QUIET=1 ! rule_sources "$pkgb" 1
+  STRICT=1 VERBOSE=0 QUIET=1
+  local status=0
+  rule_sources "$pkgb" 1 || status=$?
+  [ "$status" -ne 0 ]
   printf '%s\n' "${REPORT_ITEMS[@]}" | grep -q 'item_source_urls|FAIL|urls_https_fail'
 }

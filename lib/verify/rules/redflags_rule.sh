@@ -7,7 +7,7 @@
 rule_red_flags() { # $1=pkgb $2=strict
   local pkgb="$1" strict="$2" flags="" count=0
   # Prefer JS parser when available (diagnostics and better matching). Avoid extra Node calls.
-  if js_parser_available; then
+  if command -v js_parser_available >/dev/null 2>&1 && js_parser_available; then
     if [ -n "${AUR_JS_SIG_RED_FLAGS:-}" ]; then
       count="$AUR_JS_SIG_RED_FLAGS"
     else

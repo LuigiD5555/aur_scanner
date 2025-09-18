@@ -14,13 +14,19 @@ setup() {
 @test "red flags: warn non-strict" {
   local pkgb="$REPO_DIR/tests/fixtures/redflags/PKGBUILD"
   report_init
-  STRICT=0 VERBOSE=0 QUIET=1 rule_red_flags "$pkgb" 0 || true
+  STRICT=0 VERBOSE=0 QUIET=1
+  local status=0
+  rule_red_flags "$pkgb" 0 || status=$?
+  [ "$status" -eq 0 ]
   printf '%s\n' "${REPORT_ITEMS[@]}" | grep -q 'item_red_flags|WARN|redflags_warn'
 }
 
 @test "red flags: fail strict" {
   local pkgb="$REPO_DIR/tests/fixtures/redflags/PKGBUILD"
   report_init
-  STRICT=1 VERBOSE=0 QUIET=1 ! rule_red_flags "$pkgb" 1
+  STRICT=1 VERBOSE=0 QUIET=1
+  local status=0
+  rule_red_flags "$pkgb" 1 || status=$?
+  [ "$status" -ne 0 ]
   printf '%s\n' "${REPORT_ITEMS[@]}" | grep -q 'item_red_flags|FAIL|redflags_fail'
 }
