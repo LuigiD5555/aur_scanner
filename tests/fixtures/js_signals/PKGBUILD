@@ -1,0 +1,10 @@
+pkgname=js-signals-fixture
+pkgver=1.0
+pkgrel=1
+pkgdesc="Fixture to trigger JS parser signals"
+arch=('any')
+source=(
+  'git+https://github.com/example/example.git'
+  'http://example.com/archive.tar.gz'
+)
+sha256sums=('SKIP' 'SKIP')

@@ -1,0 +1,7 @@
+pkgname=checksums-fixture
+pkgver=1.0
+pkgrel=1
+pkgdesc="Fixture with weak checksums for tests"
+arch=('any')
+source=('http://example.com/archive.tar.gz')
+sha1sums=('d3b07384d113edec49eaa6238ad5ff00f6bff7f8')
