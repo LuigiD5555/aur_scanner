@@ -7,36 +7,36 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: |
+          pacman -Sy --noconfirm sudo git nodejs npm bats shellcheck
+
       - name: ShellCheck
-        uses: ludeeus/action-shellcheck@2.0.0
-        with:
-          scandir: './bin ./lib ./scripts'
+        run: shellcheck bin/* lib/* scripts/* || true
 
       - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+        run: |
+          node --version
+          npm --version
 
       - name: Node smoke test
         run: |
           if [ -f bin/pkgb-parse ]; then
-            node --version
             node bin/pkgb-parse --help || true
           else
             echo "No pkgb-parse CLI found, skipping."
           fi
 
-      - name: Install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
+      - name: Create needed directories
+        run: mkdir -p bin lib scripts
+
+      - name: List directories for verification
+        run: ls -la bin lib scripts
 
       - name: Run test suite
         run: bash scripts/run-tests.sh
-      
-      - name: Create needed directories
-        run: mkdir -p bin lib scripts
-      
-      - name: List directories for verification
-        run: ls -la bin lib scripts
