@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 # search_and_resolve.sh — strict AUR search and resolver helpers
 
 prefer_fast_variant() { awk '{a[NR]=$0} END {for(i=1;i<=NR;i++) if (a[i] ~ /-bin$/ || a[i] ~ /-appimage$/) print a[i]; for(i=1;i<=NR;i++) if (!(a[i] ~ /-bin$/ || a[i] ~ /-appimage$/)) print a[i] }'; }

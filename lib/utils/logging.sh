@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 # logging.sh — uniform logging helpers
 
 log_info()  { [ "${QUIET:-0}" = "1" ] && return; printf '[INFO] %s\n' "$*" >&2; }

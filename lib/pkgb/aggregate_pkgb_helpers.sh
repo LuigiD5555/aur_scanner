@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 # aggregate_pkgb_helpers.sh — aggregates PKGBUILD helper functions
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)

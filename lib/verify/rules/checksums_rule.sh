@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 # checksums_rule.sh — enforce checksum policy and optional rewrite
 
 rule_checksums() { # $1=pkgb $2=checkout $3=strict $4=fast
@@ -21,6 +22,8 @@ rule_checksums() { # $1=pkgb $2=checkout $3=strict $4=fast
     else
       if [ "$fast" = "1" ]; then
         report_add "item_checksums" "WARN" "sum_autofixed_skipfast"; return 0
+      elif [ "${VERIFY_ONLY:-0}" = "1" ]; then
+        report_add "item_checksums" "WARN" "sum_autofixed_skipverifyonly"; return 0
       else
         if rewrite_sums_to_sha256 "$checkout"; then
           report_add "item_checksums" "PASS" "sum_autofixed_ok"; return 0
@@ -36,6 +39,8 @@ rule_checksums() { # $1=pkgb $2=checkout $3=strict $4=fast
     else
       if [ "$fast" = "1" ]; then
         report_add "item_checksums" "WARN" "sum_missing_fast"; return 0
+      elif [ "${VERIFY_ONLY:-0}" = "1" ]; then
+        report_add "item_checksums" "WARN" "sum_autofixed_skipverifyonly"; return 0
       else
         if rewrite_sums_to_sha256 "$checkout"; then
           report_add "item_checksums" "PASS" "sum_autofixed_ok"; return 0

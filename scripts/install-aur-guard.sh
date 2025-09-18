@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 # install-aur-guard.sh — Set up aur-guard symlinks automatically
 
 set -euo pipefail
@@ -22,8 +23,30 @@ Notes:
 EOF
 }
 
+print_banner() {
+  cat <<'ASCII'
+       ,----,.       ,----,.       ,----,.       ,----,. 
+     ,'¨¨¨,'5|     ,'¨¨¨,'5|     ,'¨¨¨,'5|     ,'¨¨¨,'5| 
+   ,'¨¨¨.'555|   ,'¨¨¨.'555|   ,'¨¨¨.'555|   ,'¨¨¨.'555| 
+ ,----.'5555.' ,----.'5555.' ,----.'5555.' ,----.'5555.' 
+ |¨¨¨¨|555.'   |¨¨¨¨|555.'   |¨¨¨¨|555.'   |¨¨¨¨|555.'   
+ :¨¨¨¨:55|--,  :¨¨¨¨:55|--,  :¨¨¨¨:55|--,  :¨¨¨¨:55|--,  
+ :¨▗▄▖|▗▖;▗▖▗▄▄▖¨¨▗▄▄▖5▗▄▄▖\▗▄▖¨▗▖|5▗▖▗▖5\▗▖▗▄▄▄▖▗▄▄▖'5\ 
+ |▐▌¨▐▌▐▌5▐▌▐▌ ▐▌▐▌¨|5▐▌555▐▌|▐▌▐▛▚▖▐▌▐▛▚▖▐▌▐▌¨¨|▐▌5▐▌5|
+ `▐▛▀▜▌▐▌\▐▌▐▛▀▚▖-▝▀▚▖▐▌555▐▛▀▜▌▐▌'▝▜▌▐▌5▝▜▌▐▛▀▀▘▐▛▀▚▖5; 
+  ▐▌ ▐▌▝▚▄▞▘▐▌ ▐▌▗▄▄▞▘▝▚▄▄▖▐▌ ▐▌▐▌ \▐▌▐▌5|▐▌▐▙▄▄▖▐▌ ▐▌5| 
+ /¨¨¨/\/  /55: /¨¨¨/\/  /55: /¨¨¨/\/  /55: /¨¨¨/\/  /55: 
+/___/55',-555./___/55',-555./___/55',-555./___/55',-555. 
+\'''\5555555; \ ''\5555555; \ ''\5555555; \ ''\5555555;  
+ \¨¨¨\5555.'   \¨¨¨\5555.'   \¨¨¨\5555.'   \¨¨¨\5555.'   
+  `--`-,-'      `--`-,-'      `--`-,-'      `--`-,-'     
+ASCII
+  echo
+}
+
 mode="user"
-wrap_pacman=0
+
+# Parse args first (so --help no imprime el banner)
 for arg in "$@"; do
   case "$arg" in
     --user) mode="user" ;;
@@ -34,6 +57,9 @@ for arg in "$@"; do
   esac
 done
 
+# Show branding only for real runs
+print_banner
+
 # Resolve repo root (this script is in scripts/)
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
@@ -42,7 +68,6 @@ GUARD="$ROOT_DIR/bin/aur-guard"
 
 # Known helpers to wrap (add more if needed)
 helpers=(yay paru pikaur trizen pamac)
-:
 
 if [ "$mode" = "user" ]; then
   dest="$HOME/.local/bin"
@@ -54,7 +79,7 @@ if [ "$mode" = "user" ]; then
   # Ensure ~/.local/bin is at the beginning of PATH on next logins
   prof="$HOME/.profile"
   ensure_line='export PATH="$HOME/.local/bin:$PATH"'
-  if ! grep -Fq "$ensure_line" "$prof" 2>/dev/null; then
+  if ! grep -Fqx "$ensure_line" "$prof" 2>/dev/null; then
     echo "$ensure_line" >> "$prof"
     echo "[install] Added ~/.local/bin to PATH in $prof"
   fi
@@ -62,7 +87,7 @@ if [ "$mode" = "user" ]; then
 else
   dest="/usr/local/bin"
   if [ ! -w "$dest" ]; then
-    echo "[install] /usr/local/bin requires root. Try: sudo $0 --system" >&2
+    echo "[install] /usr/local/bin requires root. Try: sudo \"$0\" --system" >&2
     exit 1
   fi
   for h in "${helpers[@]}"; do

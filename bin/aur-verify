@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LIB_DIR="$SCRIPT_DIR/../lib"
@@ -24,9 +25,9 @@ fi
 source "$LIB_DIR/github/derive_candidates_from_repo.sh"
 source "$LIB_DIR/aur/search_and_resolve.sh"
 source "$LIB_DIR/pkgb/aggregate_pkgb_helpers.sh"
-# Optional JS parser helpers
-if [ -f "$LIB_DIR/js.sh" ]; then
-  source "$LIB_DIR/js.sh"
+# Optional JS parser helpers (descriptive name)
+if [ -f "$LIB_DIR/pkgb/js_parser_bridge.sh" ]; then
+  source "$LIB_DIR/pkgb/js_parser_bridge.sh"
 else
   # Safe stubs when JS helpers are absent
   js_parser_available() { return 1; }
@@ -38,8 +39,8 @@ else
 fi
 source "$LIB_DIR/i18n/messages.sh"
 source "$LIB_DIR/report/render_summary.sh"
-source "$LIB_DIR/verify/rules.sh"
-source "$LIB_DIR/verify/runner.sh"
+source "$LIB_DIR/verify/verification_rules_loader.sh"
+source "$LIB_DIR/verify/aur_verification_orchestrator.sh"
 
 # Defaults (can be overridden via env)
 YAY_BIN="${YAY_BIN:-yay}"

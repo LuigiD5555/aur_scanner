@@ -6,8 +6,8 @@ setup() {
   source "$LIB/core/shell_safety.sh"
   source "$LIB/utils/logging.sh"
   source "$LIB/pkgb/aggregate_pkgb_helpers.sh"
-  source "$LIB/verify/rules.sh"
-  source "$LIB/verify/runner.sh"
+  source "$LIB/verify/verification_rules_loader.sh"
+  source "$LIB/verify/aur_verification_orchestrator.sh"
 }
 
 @test "verifysource: skip in verify-only mode" {

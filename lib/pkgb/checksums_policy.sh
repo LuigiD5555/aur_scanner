@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 # checksums_policy.sh — checksum detection and rewrite helpers
 
 has_strong_sums() { grep -Eq '^[[:space:]]*(sha256sums|sha512sums)='; }
-has_weak_or_skip() { grep -Eq '^[[:space:]]*(md5sums|sha1sums)=' || grep -Eq '(^|[[:space:]])SKIP([[:space:]]|\")'; }
+has_weak_or_skip() { grep -Eq '^[[:space:]]*(md5sums|sha1sums)=' || grep -Eq '(^|[[:space:]])SKIP([[:space:]]|")'; }
 
 rewrite_sums_to_sha256() { # dir with PKGBUILD
   local dir="$1"

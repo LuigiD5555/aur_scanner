@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 # messages.sh — Language detection and simple translations (en/es)
 
 i18n_detect_lang() {
@@ -33,6 +34,7 @@ i18n_translate_msg() { # $1=msg_key
     source_plain)             [ "$REPORT_LANG" = es ] && echo "PKGBUILD plano desde AUR" || echo "AUR plain PKGBUILD";;
     source_snapshot)          [ "$REPORT_LANG" = es ] && echo "Snapshot .tar.gz desde AUR" || echo "AUR snapshot tarball";;
     source_git)               [ "$REPORT_LANG" = es ] && echo "Clonado desde AUR (fallback)" || echo "AUR git clone (fallback)";;
+    plain_available_ok)       [ "$REPORT_LANG" = es ] && echo "PKGBUILD plano accesible" || echo "Plain PKGBUILD reachable";;
     plain_missing_warn)       [ "$REPORT_LANG" = es ] && echo "PKGBUILD plano no disponible (advertencia)" || echo "Plain PKGBUILD unavailable (warning)";;
     plain_missing_fail)       [ "$REPORT_LANG" = es ] && echo "PKGBUILD plano no disponible (estricto)" || echo "Plain PKGBUILD unavailable (strict)";;
     vcs_pinned_ok)            [ "$REPORT_LANG" = es ] && echo "Todas las fuentes VCS fijadas (o no hay)" || echo "All VCS sources pinned (or none present)";;

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 # vcs_pinning_rule.sh — enforce VCS pinning for git+ sources
 
 rule_vcs_pinning() { # $1=pkgb $2=strict -> sets report items

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
 # verifysource_rule.sh — run makepkg --verifysource according to mode
 
 rule_verifysource() { # $1=checkout $2=mode (fast|verify-only|full) $3=strict
