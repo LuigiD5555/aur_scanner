@@ -4,12 +4,80 @@
 # Author GitHub: https://github.com/LuigiD5555
 # sources_and_domains.sh — PKGBUILD source listing and domain/HTTPS helpers
 
-list_sources() {
-  sed -n "s/^[[:space:]]*source[[:space:]]*=[[:space:]]*(\(.*\))/\1/p" \
-    | tr ' ' '\n' | tr -d "\"'" \
-    | sed "s/[()']//g" | sed 's/^git+https:/https:/' \
-    | grep -E '^(https?|git|ftp)://|::https?://|::git://'
+_emit_sources_tokens() {
+  local block="$1"
+  python - "$block" <<'PYTOK'
+import re, sys
+block = sys.argv[1]
+tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^\s]+)", block)
+for single, double, bare in tokens:
+    token = single or double or bare
+    token = token.strip()
+    if token:
+        print(token)
+PYTOK
 }
 
-sources_have_only_https() { awk '!/^https:\/\// {bad=1} END{exit bad}'; }
-sources_domains_allowed() { grep -Ev "$ALLOWED_DOMAINS" >/dev/null && return 1 || return 0; }
+list_sources() {
+  local line trimmed collecting=0 buffer=""
+  while IFS= read -r line; do
+    trimmed="${line%%#*}"
+    if (( collecting )); then
+      buffer+=$'\n'"${trimmed}"
+      if [[ $trimmed == *')'* ]]; then
+        collecting=0
+        local block="${buffer%%)*}"
+        _emit_sources_tokens "$block"
+        buffer=""
+      fi
+      continue
+    fi
+    if [[ $trimmed =~ ^[[:space:]]*source(\+)?[[:space:]]*=\( ]]; then
+      collecting=1
+      buffer="${trimmed#*=}"
+      buffer="${buffer#*(}"
+      if [[ $buffer == *')'* ]]; then
+        collecting=0
+        local block="${buffer%%)*}"
+        _emit_sources_tokens "$block"
+        buffer=""
+      fi
+    fi
+  done
+}
+
+sources_have_only_https() {
+  local entry
+  while IFS= read -r entry; do
+    entry="${entry##*::}"
+    entry="${entry#\"}"
+    entry="${entry%\"}"
+    entry="${entry#'}"
+    entry="${entry%'}"
+    entry="${entry#"${entry%%[![:space:]]*}"}"
+    entry="${entry%"${entry##*[![:space:]]}"}"
+    entry="${entry#git+}"
+    [[ -z $entry ]] && continue
+    [[ $entry == https://* ]] || return 1
+  done
+  return 0
+}
+
+sources_domains_allowed() {
+  local entry domain
+  while IFS= read -r entry; do
+    entry="${entry##*::}"
+    entry="${entry#\"}"
+    entry="${entry%\"}"
+    entry="${entry#'}"
+    entry="${entry%'}"
+    entry="${entry#"${entry%%[![:space:]]*}"}"
+    entry="${entry%"${entry##*[![:space:]]}"}"
+    entry="${entry#git+}"
+    [[ $entry =~ ^[a-zA-Z0-9+.-]+:// ]] || continue
+    domain="${entry#*://}"
+    domain="${domain%%/*}"
+    [[ $domain =~ ${ALLOWED_DOMAINS} ]] || return 1
+  done
+  return 0
+}

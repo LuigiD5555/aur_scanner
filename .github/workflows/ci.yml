@@ -14,15 +14,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pacman -Sy --noconfirm sudo git nodejs npm bats shellcheck
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed git nodejs npm bats shellcheck python
 
       - name: ShellCheck
-        run: shellcheck bin/* lib/* scripts/* || true
-
-      - name: Setup Node
         run: |
-          node --version
-          npm --version
+          mapfile -t files < <(git ls-files | grep -E '(^bin/(aur-verify|aur-guard)$|\.sh$)')
+          if [ "${#files[@]}" -gt 0 ]; then
+            shellcheck "${files[@]}"
+          fi
 
       - name: Node smoke test
         run: |
@@ -31,12 +31,6 @@ jobs:
           else
             echo "No pkgb-parse CLI found, skipping."
           fi
-
-      - name: Create needed directories
-        run: mkdir -p bin lib scripts
-
-      - name: List directories for verification
-        run: ls -la bin lib scripts
 
       - name: Run test suite
         run: bash scripts/run-tests.sh

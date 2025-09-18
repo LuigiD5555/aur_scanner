@@ -15,22 +15,24 @@ source "$SCRIPT_DIR/functions_summary.sh"
 # keep pkgb_check_vcs_pinning from original pkgb.sh
 pkgb_check_vcs_pinning() { # $1=PKGBUILD
   local pkgb="$1" unpinned=0
-  local sources
-  sources="$(sed -n 's/^[[:space:]]*source[[:space:]]*=[[:space:]]*(\(.*\))/\1/p' "$pkgb" \
-            | tr ' ' '\n' | tr -d "\"'" | sed 's/[()]//g')"
-  while IFS= read -r s; do
-    [ -z "$s" ] && continue
-    case "$s" in *::*) s="${s#*::}";; esac
-    case "$s" in
-      git+http*|git+https*)
-        if ! printf '%s' "$s" | grep -Eq '#(commit|tag)='; then
-          log_warn "Unpinned VCS source: $s (add #commit= or #tag= per VCS guidelines)"
+  while IFS= read -r source_entry; do
+    [ -z "$source_entry" ] && continue
+    local url="$source_entry"
+    case "$url" in *::*) url="${url#*::}";; esac
+    url="${url#\"}"
+    url="${url%\"}"
+    url="${url#'}"
+    url="${url%'}"
+    url="${url#${url%%[![:space:]]*}}"
+    url="${url%${url##*[![:space:]]}}"
+    case "$url" in
+      git+http*|git+https*|git+ssh*|git+git*)
+        if [[ "$url" != *#commit=* && "$url" != *#tag=* ]]; then
+          log_warn "Unpinned VCS source: $url (add #commit= or #tag= per VCS guidelines)"
           unpinned=1
         fi
         ;;
     esac
-  done <<EOF
-$sources
-EOF
+  done < <(sed -n 'p' "$pkgb" | list_sources)
   return $unpinned
 }
