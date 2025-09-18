@@ -1,6 +1,6 @@
 # Developer Notes (Internal)
 
-Language: English | Español (`README.es.md`)
+Language: English | Español (`README.dev.es.md`)
 
 This document captures implementation details, tuning knobs, and maintenance notes that are intentionally not surfaced in the main README. It is meant for contributors and maintainers.
 
@@ -41,8 +41,8 @@ sequenceDiagram
     participant GitHub as GitHub lib/github/derive_candidates_from_repo.sh
     participant Search as AUR Resolver lib/aur/search_and_resolve.sh
     participant Plain as AUR Plain/RPC lib/aur/fetch_plain_and_snapshot.sh
-    participant Verify as Verifier lib/verify/runner.sh
-    participant Rules as Rules lib/verify/rules.sh
+    participant Verify as Verifier lib/verify/aur_verification_orchestrator.sh
+    participant Rules as Rules lib/verify/verification_rules_loader.sh
     participant PKGB as PKGB Utils lib/pkgb/aggregate_pkgb_helpers.sh
     participant Report as Report lib/report/render_summary.sh + lib/i18n/messages.sh
     participant Makepkg as makepkg
@@ -144,8 +144,8 @@ sequenceDiagram
 ## Architecture Overview
 
 - Bash entrypoint: `bin/aur-verify`
-- Verify runner: `lib/verify/runner.sh` orchestrates the end-to-end flow and installation handoff
-- Atomic rules: `lib/verify/rules.sh` aggregates `lib/verify/rules/*.sh`
+- Verify orchestrator: `lib/verify/aur_verification_orchestrator.sh` orchestrates the end-to-end flow and installation handoff
+- Atomic rules: `lib/verify/verification_rules_loader.sh` aggregates `lib/verify/rules/*.sh`
   - `vcs_pinning_rule.sh`, `sources_rule.sh`, `checksums_rule.sh`, `verifysource_rule.sh` (and `redflags_rule.sh` available; see note below)
 - AUR fetchers and RPC helpers: `lib/aur/fetch_plain_and_snapshot.sh`
 - AUR search/resolve utilities: `lib/aur/search_and_resolve.sh`
@@ -235,16 +235,16 @@ Verification
   - `checksums_rule.sh`: Enforce strong sums; optional auto‑rewrite to sha256 (non‑strict/non‑fast).
   - `verifysource_rule.sh`: Run `makepkg --verifysource` depending on mode; interpret result.
   - `redflags_rule.sh`: Available; off by default in summary (diagnostics still available).
-- `lib/verify/rules.sh`: Aggregator that exposes `rule_*` calls.
-- `lib/verify/runner.sh`: `verify_pkgbuild`, `install_or_verify`, `aur_checkout_to` and overall orchestration.
+- `lib/verify/verification_rules_loader.sh`: Aggregator that exposes `rule_*` calls.
+- `lib/verify/aur_verification_orchestrator.sh`: `verify_pkgbuild`, `install_or_verify`, `aur_checkout_to` and overall orchestration.
 
 <details>
 <summary><strong>Sequence — Rules & Reporting</strong></summary>
 
 ```mermaid
 sequenceDiagram
-    participant Runner as verify/runner.sh
-    participant Rules as verify/rules.sh
+    participant Runner as verify/aur_verification_orchestrator.sh
+    participant Rules as verify/verification_rules_loader.sh
     participant Report as report/render_summary.sh
     Runner->>Rules: rule_vcs_pinning
     Rules-->>Runner: status
@@ -307,7 +307,7 @@ Node PKGB parser (optional)
 Purpose by file (quick map)
 
 - `bin/aur-verify`: CLI args → call `install_or_verify` → inside: `resolve_pkg` → `aur_checkout_to` → rules → summary → maybe install.
-- `lib/verify/runner.sh`: Implements the sequence above, provides temp workdir and mode handling.
+- `lib/verify/aur_verification_orchestrator.sh`: Implements the sequence above, provides temp workdir and mode handling.
 - `lib/verify/rules/*.sh`: Single‑responsibility checks (status + message key + optional fix).
 - `lib/pkgb/*.sh`: Pure helpers; no network except checksum rewrite via `makepkg -g`.
 - `lib/aur/*.sh`: Only place that touches network (AUR plain/snapshot/git).
@@ -338,18 +338,18 @@ Key invariants (for auditing)
 
 ## Performance Tweaks (Internal)
 
-- AUR RPC exact-name check is attempted first to avoid slow searches (`aur_plain_rpc_info`).
-- `lib/aur/fetch_plain_and_snapshot.sh` implements plain PKGBUILD caching:
-  - Env vars: `AUR_CACHE_DIR` (default `/tmp/aur-plain-cache`), `AUR_CACHE_TTL_SEC` (default `3600`).
-  - `.SRCINFO` is fetched only in VERBOSE or STRICT.
-  - `curl` uses compression, small timeouts and follows redirects.
-- Checksum rewrite is skipped when `FAST=1`; otherwise `rewrite_sums_to_sha256` attempts to upgrade to sha256sums.
+- JS parser single-shot: `rule_js_signals` invokes the Node parser once and exports counts; `rule_red_flags` reuses them and only renders lines in `--verbose` (no extra Node launches).
+- Fetch plain first: always try AUR `plain/PKGBUILD?h=<pkg>`, then fallback to `tree/PKGBUILD?plain=1`, finally snapshot or shallow git clone.
+- Robust network path: curl helpers try default stack and fallback to IPv4 automatically; honor `AUR_FORCE_IPV4=1` to force IPv4.
+- Plain availability check: even if checkout falls back to snapshot/git, `aur_plain_exists` uses HEAD to mark availability accurately in the report.
+- Skip heavy downloads in verify-only: checksum auto‑rewrite via `makepkg -g` is disabled when `VERIFY_ONLY=1` (still enabled in full mode unless `FAST=1`).
+- `.SRCINFO` is fetched only in VERBOSE or STRICT.
+- Plain PKGBUILD caching via `/tmp` with TTL (env: `AUR_CACHE_DIR`, `AUR_CACHE_TTL_SEC`).
 
-## Red Flags Handling (current behavior)
+## Red Flags Handling
 
-- The atomic rule exists: `rule_red_flags()` (Bash) and JS diagnostics are available, but the runner does not currently add a red-flags item to the summary report.
-- In `--verbose`, JS red flags lines are printed as diagnostics if the Node parser is available.
-- Policy in `redflags_rule.sh` (when invoked) treats the architecture-selection eval pattern as low risk (WARN normal / FAIL strict); other patterns WARN/FAIL accordingly.
+- The atomic rule `rule_red_flags()` prefers the Node parser when present. It uses the exported JS count to avoid an extra parse, and prints detailed lines only in `--verbose`.
+- Policy treats the arch-selection `eval` pattern as low risk (WARN normal / FAIL strict); other patterns WARN/FAIL accordingly.
 
 ## Node Parser Integration (`bin/pkgb-parse`)
 
@@ -403,8 +403,8 @@ Key invariants (for auditing)
 - GitHub candidates: `lib/github/derive_candidates_from_repo.sh`
   - Repo metadata (optional): pulled via `$YAY_BIN -Si` when helper is present
 - PKGBUILD helpers: `lib/pkgb/{sources_and_domains,checksums_policy,redflags_scan,functions_summary}.sh` (aggregated by `aggregate_pkgb_helpers.sh`)
-- Verify rules: `lib/verify/rules/*.sh` (aggregated by `lib/verify/rules.sh`)
-- Verify runner: `lib/verify/runner.sh`
+- Verify rules: `lib/verify/rules/*.sh` (aggregated by `lib/verify/verification_rules_loader.sh`)
+- Verify orchestrator: `lib/verify/aur_verification_orchestrator.sh`
 - i18n: `lib/i18n/messages.sh`
 - Report: `lib/report/render_summary.sh`
 
@@ -478,8 +478,8 @@ sequenceDiagram
     participant GitHub as GitHub lib/github/derive_candidates_from_repo.sh
     participant Search as AUR Resolver lib/aur/search_and_resolve.sh
     participant Plain as AUR Plain/RPC lib/aur/fetch_plain_and_snapshot.sh
-    participant Verify as Verifier lib/verify/runner.sh
-    participant Rules as Rules lib/verify/rules.sh
+    participant Verify as Verifier lib/verify/aur_verification_orchestrator.sh
+    participant Rules as Rules lib/verify/verification_rules_loader.sh
     participant PKGB as PKGB Utils lib/pkgb/aggregate_pkgb_helpers.sh
     participant Report as Report lib/report/render_summary.sh + lib/i18n/messages.sh
     participant Makepkg as makepkg
@@ -640,8 +640,10 @@ flowchart TD
 flowchart TD
     Pkg[Resolved package] --> F{Fetch}
     F -->|plain OK| PLAIN[AUR plain: PKGBUILD/.SRCINFO]
-    F -->|plain failed| SNAP[Snapshot tarball]
-    SNAP -->|failed| GIT[Shallow git clone]
+    F -->|plain fail| ALT[tree/PKGBUILD?plain=1]
+    ALT -->|ok| PLAIN
+    ALT -->|fail| SNAP[Snapshot tarball]
+    SNAP -->|fail| GIT[Shallow git clone]
     PLAIN --> OUT[Checkout dir]
     GIT --> OUT
 ```
@@ -751,3 +753,19 @@ sequenceDiagram
 - `is_github_url`, `build_candidates_from_github`, `github_default_branch`: Wrapper candidate derivation.
 
 </details>
+## Versioning and Changelog
+
+This project is delivered as scripts; we record notable changes here for contributors. Dates are UTC.
+
+- 2025-09-04
+  - JS parser integration performance: added `lib/pkgb/js_parser_bridge.sh` and `rule_js_signals` so the Node parser runs once per verification; `rule_red_flags` reuses exported counts and only renders lines in `--verbose`.
+  - AUR fetch robustness: fetch flow is now `plain` → `tree?plain=1` → `snapshot` → `git` (last resort). `aur_plain_exists` uses HEAD and the summary marks plain availability correctly even after fallbacks.
+  - Network resilience: IPv4 fallback added to AUR requests; env `AUR_FORCE_IPV4=1` forces IPv4 for all AUR calls.
+  - Verify-only efficiency: checksum auto-rewrite via `makepkg -g` is skipped in `VERIFY_ONLY=1`; `.SRCINFO` fetched only in VERBOSE/STRICT.
+  - Summary/report: added explicit PASS for “Plain PKGBUILD availability” when the URL responds even if checkout used snapshot/git.
+  - File naming: renamed `lib/verify/runner.sh` → `lib/verify/aur_verification_orchestrator.sh`, `lib/verify/rules.sh` → `lib/verify/verification_rules_loader.sh`; docs renamed to `README.dev.md`, `README.dev.es.md`, `README.md`, `README.es.md`, and `docs/INDEX.md`.
+  - Diagrams/docs updated to reflect new fetch step (`tree?plain=1`) and module names.
+
+Versioning policy
+
+- Breaking CLI flags or behavior will be called out explicitly in this section. Internal refactors that don’t change user-facing flags are grouped under performance/robustness.

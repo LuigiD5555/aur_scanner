@@ -42,8 +42,8 @@ sequenceDiagram
     participant GitHub as GitHub lib/github/derive_candidates_from_repo.sh
     participant Search as Resolver AUR lib/aur/search_and_resolve.sh
     participant Plain as AUR Plain/RPC lib/aur/fetch_plain_and_snapshot.sh
-    participant Verify as Verificador lib/verify/runner.sh
-    participant Rules as Reglas lib/verify/rules.sh
+    participant Verify as Verificador lib/verify/aur_verification_orchestrator.sh
+    participant Rules as Reglas lib/verify/verification_rules_loader.sh
     participant PKGB as PKGB Utils lib/pkgb/aggregate_pkgb_helpers.sh
     participant Report as Reporte lib/report/render_summary.sh + lib/i18n/messages.sh
     participant Makepkg as makepkg
@@ -144,8 +144,8 @@ sequenceDiagram
 ## Resumen de Arquitectura
 
 - Punto de entrada Bash: `bin/aur-verify`
-- Orquestación de verificación: `lib/verify/runner.sh` (flujo end‑to‑end y handoff a instalación)
-- Reglas atómicas: `lib/verify/rules.sh` agrega `lib/verify/rules/*.sh`
+- Orquestación de verificación: `lib/verify/aur_verification_orchestrator.sh` (flujo end‑to‑end y handoff a instalación)
+- Reglas atómicas: `lib/verify/verification_rules_loader.sh` agrega `lib/verify/rules/*.sh`
   - `vcs_pinning_rule.sh`, `sources_rule.sh`, `checksums_rule.sh`, `verifysource_rule.sh` (y `redflags_rule.sh` disponible; ver nota)
 - Fetchers de AUR + RPC: `lib/aur/fetch_plain_and_snapshot.sh`
 - Búsqueda/resolve: `lib/aur/search_and_resolve.sh`
@@ -235,16 +235,16 @@ Verificación
   - `checksums_rule.sh`: Sumatorias fuertes; reescritura a sha256 opcional (no strict/no fast).
   - `verifysource_rule.sh`: Ejecuta `makepkg --verifysource` según modo; interpreta resultado.
   - `redflags_rule.sh`: Disponible; no aparece en el resumen por defecto (sí como diagnóstico).
-- `lib/verify/rules.sh`: Agregador que expone `rule_*`.
-- `lib/verify/runner.sh`: `verify_pkgbuild`, `install_or_verify`, `aur_checkout_to` y orquestación general.
+- `lib/verify/verification_rules_loader.sh`: Agregador que expone `rule_*`.
+- `lib/verify/aur_verification_orchestrator.sh`: `verify_pkgbuild`, `install_or_verify`, `aur_checkout_to` y orquestación general.
 
 <details>
 <summary><strong>Secuencia — Reglas y Reporte</strong></summary>
 
 ```mermaid
 sequenceDiagram
-    participant Runner as verify/runner.sh
-    participant Rules as verify/rules.sh
+    participant Runner as verify/aur_verification_orchestrator.sh
+    participant Rules as verify/verification_rules_loader.sh
     participant Report as report/render_summary.sh
     Runner->>Rules: rule_vcs_pinning
     Rules-->>Runner: estado
@@ -307,7 +307,7 @@ Parser PKGB (Node, opcional)
 Propósito por archivo (mapa rápido)
 
 - `bin/aur-verify`: args CLI → `install_or_verify` → dentro: `resolve_pkg` → `aur_checkout_to` → reglas → resumen → posible instalación.
-- `lib/verify/runner.sh`: Implementa la secuencia, workdir temporal y manejo de modos.
+- `lib/verify/aur_verification_orchestrator.sh`: Implementa la secuencia, workdir temporal y manejo de modos.
 - `lib/verify/rules/*.sh`: Chequeos de única responsabilidad (status + clave de mensaje + posible fix).
 - `lib/pkgb/*.sh`: Helpers puros; sin red salvo `makepkg -g` para checksums.
 - `lib/aur/*.sh`: Único lugar que toca red (AUR plain/snapshot/git).
@@ -448,13 +448,14 @@ Conmutadores y precedencia
 - Pinning VCS: fuentes `git+` fijadas (FAIL en estricto si no).
 - Logging: el resumen refleja fielmente estados y modos.
 
-## Oportunidades de Optimización
+## Oportunidades de Optimización y cambios aplicados (2025-09)
 
-- Caché: ajustar `AUR_CACHE_TTL_SEC`; persistir entre ejecuciones si procede.
-- Paralelismo: pre‑calcular fuentes compactas con Node parser mientras se baja plain.
-- I/O: minimizar `yay -Si` detrás de `--metadata` o caché.
-- Red‑flags: usar señales del parser para expandir reglas en verbose.
-- Resolución: sesgar variantes `-bin`/`-appimage` en modo rápido para evitar descargas profundas.
+- Parser JS en una sola invocación desde Bash: se exportan señales (unpinnedGit, nonHttps, redFlags) y se reutilizan en reglas; en `--verbose` se imprimen líneas detalladas sin relanzar Node.
+- Obtención robusta del PKGBUILD: `plain` → `tree?plain=1` → snapshot → git superficial; la disponibilidad `plain` se comprueba con HEAD para reflejarla en el reporte aunque el checkout use snapshot/git.
+- Red más predecible: fallback automático a IPv4 y soporte `AUR_FORCE_IPV4=1` para forzar IPv4 en todas las peticiones a AUR.
+- Menos descargas en verificación: en `--verify-only` no se ejecuta `makepkg -g` ni se reescriben checksums.
+- `.SRCINFO` solo se descarga en VERBOSE o STRICT.
+- Caché: `AUR_CACHE_TTL_SEC` controla caducidad del PKGBUILD plano en `/tmp`.
 
 ## Diagramas
 
@@ -469,8 +470,8 @@ sequenceDiagram
     participant GitHub as GitHub lib/github/derive_candidates_from_repo.sh
     participant Search as Resolver AUR lib/aur/search_and_resolve.sh
     participant Plain as AUR Plain/RPC lib/aur/fetch_plain_and_snapshot.sh
-    participant Verify as Verificador lib/verify/runner.sh
-    participant Rules as Reglas lib/verify/rules.sh
+    participant Verify as Verificador lib/verify/aur_verification_orchestrator.sh
+    participant Rules as Reglas lib/verify/verification_rules_loader.sh
     participant PKGB as PKGB Utils lib/pkgb/aggregate_pkgb_helpers.sh
     participant Report as Reporte lib/report/render_summary.sh + lib/i18n/messages.sh
     participant Makepkg as makepkg
@@ -619,7 +620,9 @@ flowchart TD
 flowchart TD
     Pkg[Paquete resuelto] --> F{Fetch}
     F -->|plain OK| PLAIN[AUR plain: PKGBUILD/.SRCINFO]
-    F -->|plain falló| SNAP[Tarball snapshot]
+    F -->|plain falló| ALT[tree/PKGBUILD?plain=1]
+    ALT -->|ok| PLAIN
+    ALT -->|falló| SNAP[Tarball snapshot]
     SNAP -->|falló| GIT[Git clone superficial]
     PLAIN --> OUT[Directorio de checkout]
     GIT --> OUT
@@ -705,3 +708,19 @@ sequenceDiagram
 ```
 
 </details>
+## Versionado y Changelog
+
+Este proyecto son scripts; aquí se documentan cambios relevantes para contribuidores. Fechas en UTC.
+
+- 2025-09-04
+  - Integración del parser JS (rendimiento): se añadió `lib/pkgb/js_parser_bridge.sh` y la regla `rule_js_signals` para ejecutar Node una sola vez por verificación; `rule_red_flags` reutiliza los contadores exportados e imprime líneas sólo en `--verbose`.
+  - Robustez en fetch de AUR: flujo `plain` → `tree?plain=1` → `snapshot` → `git` (último recurso). `aur_plain_exists` usa HEAD y el resumen marca disponibilidad de plain aunque el checkout use snapshot/git.
+  - Resiliencia de red: fallback IPv4 en peticiones AUR; `AUR_FORCE_IPV4=1` fuerza IPv4 globalmente.
+  - Eficiencia en verify-only: se omite la reescritura de checksums con `makepkg -g` cuando `VERIFY_ONLY=1`; `.SRCINFO` sólo en VERBOSE/STRICT.
+  - Resumen/reporte: item explícito de “Disponibilidad de PKGBUILD plano” con PASS cuando la URL responde.
+  - Nombres de archivos: `lib/verify/runner.sh` → `lib/verify/aur_verification_orchestrator.sh`, `lib/verify/rules.sh` → `lib/verify/verification_rules_loader.sh`. Docs: `README.dev.md`, `README.dev.es.md`, `README.md`, `README.es.md`, y `docs/INDEX.md`.
+  - Diagramas/docs actualizados para reflejar el paso `tree?plain=1` y los nuevos nombres.
+
+Política de versionado
+
+- Cualquier cambio rompedor de flags o comportamiento se destacará aquí. Refactors internos sin cambios cara al usuario se agrupan bajo rendimiento/robustez.

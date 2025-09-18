@@ -2,37 +2,35 @@
 
 > **Verifica primero, instala después** — Verificador de seguridad para paquetes de AUR (y envolturas de GitHub) con instalación automática vía `yay` sólo si todo pasa.
 
-<div align="left">
-  <img alt="Bash" src="https://img.shields.io/badge/Bash-4EAA25?logo=gnu-bash&logoColor=white" />
-  <img alt="Arch Linux" src="https://img.shields.io/badge/Arch_Linux-1793D1?logo=archlinux&logoColor=white" />
-  <img alt="AUR" src="https://img.shields.io/badge/AUR-1793D1?logo=archlinux&logoColor=white" />
-  <img alt="makepkg --verifysource" src="https://img.shields.io/badge/makepkg--verifysource-enabled-blue" />
-  <img alt="PGP" src="https://img.shields.io/badge/PGP-verification-informational?logo=gnupg&logoColor=white" />
-  <img alt="sha256" src="https://img.shields.io/badge/checksums-sha256-success" />
-  <img alt="yay" src="https://img.shields.io/badge/helper-yay-0A0A0A" />
-</div>
+[![Bash](https://img.shields.io/badge/Bash-4EAA25?logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?logo=archlinux&logoColor=white)](https://archlinux.org/)
+[![AUR](https://img.shields.io/badge/AUR-1793D1?logo=archlinux&logoColor=white)](https://aur.archlinux.org/)
+[![makepkg --verifysource](https://img.shields.io/badge/makepkg--verifysource-enabled-blue)](https://wiki.archlinux.org/title/Makepkg)
+[![PGP](https://img.shields.io/badge/PGP-verification-informational?logo=gnupg&logoColor=white)](https://gnupg.org/)
+[![sha256](https://img.shields.io/badge/checksums-sha256-success)](https://en.wikipedia.org/wiki/SHA-2)
+[![yay](https://img.shields.io/badge/helper-yay-0A0A0A)](https://github.com/Jguer/yay)
 
 ---
 
-Read this in English: `../../README.md`
+🌐 Read this in [English](../../README.md)
 
 ---
 
 ## 📚 Documentación
 
-- Índice de docs: `../README.md`
-- Docs de desarrollo: `../developer/README.es.md` (Español) · `../developer/README.md` (English)
+- Índice de docs: [Índice](../INDEX.md)
+- Docs de desarrollo: [Español](https://github.com/LuigiD5555/aur_verification/blob/development/docs/developer/README.dev.es.md) | [English](https://github.com/LuigiD5555/aur_verification/blob/development/docs/developer/README.dev.md)
 
 ---
 
-## ¿Qué hace esta herramienta?
+## 🧭 ¿Qué hace esta herramienta?
 
 Esta herramienta en Bash toma un nombre de paquete AUR **o** una URL de GitHub y:
 
-1) **Obtiene directamente desde AUR** usando los endpoints oficiales de snapshot/plain (sin `git clone`), o **detecta** el paquete AUR que envuelve una URL de GitHub. Si los endpoints snapshot/plain no están disponibles, cae a un `git clone` superficial.  
-2) **Audita** el `PKGBUILD` con controles estáticos (banderas rojas comunes).  
-3) **Verifica la integridad** de las fuentes con `makepkg --verifysource`.  
-4) **Corrige** sumas débiles (p. ej. `sha1sums`/`SKIP`) reemplazándolas por `sha256sums` (sólo en modo normal).  
+1) **Obtiene desde AUR** usando primero el endpoint “plain”. Si falla, reintenta con el alternativo (`tree?plain=1`) y solo como último recurso usa snapshot o `git clone` superficial.  
+2) **Audita** el `PKGBUILD` con controles estáticos y un parser JavaScript rápido cuando hay Node.js (fallback Bash si no; se usa automáticamente).  
+3) **Verifica** la integridad de las fuentes con `makepkg --verifysource`.  
+4) **Corrige** sumas débiles (p. ej. `sha1sums`/`SKIP`) reemplazándolas por `sha256sums` (solo en modo normal; se omite en `--verify-only` y `--fast`).  
 5) **(Opcional)** **Refuerza** la política en **modo estricto**: dominios permitidos, sin sumas débiles, y verificación PGP cuando hay `.sig`.  
 6) Si todo está limpio, **instala** automáticamente con `yay -S` (salvo que uses `--verify-only`).
 
@@ -205,13 +203,14 @@ Notas
   - Si hay archivos `.sig` en `source=()`, **debe** pasar `makepkg --verifysource` (PGP).
   - Muestra un **resumen** de funciones `prepare()`, `build()`, `package()`.
 - `YAY_BIN=/ruta/yay` — Cambia el binario de yay.
+- `AUR_FORCE_IPV4=1` — Fuerza IPv4 en todas las solicitudes a AUR (útil si IPv6 es inestable o lento).
 
 Reporte e idioma:
 
 - El resumen final se imprime en el idioma de tu terminal (inglés por defecto; español si `LANG`/`LC_*` comienza con `es`).
 - Puedes forzar el idioma con `REPORT_LANG=es` o `REPORT_LANG=en`.
  - `SHOW_FUNCS=1` — Mostrar resúmenes de `prepare()/build()/package()`; implícito con `--verbose`.
- - `SHOW_METADATA=1` — Mostrar metadatos en verify-only; implícito con `--verbose` (o usa `--metadata`).
+- `SHOW_METADATA=1` — Mostrar metadatos en verify-only; implícito con `--verbose` (o usa `--metadata`).
  - `QUIET=1` — Equivalente a `--quiet`.
 
 ---
@@ -239,6 +238,7 @@ Cuándo usar cada uno
 Notas
 
 - La verificación profunda (`DEEP=1`) requiere red para bajar fuentes; se omite si se establece `--fast`.
+- En `--verify-only` no se intenta reescribir checksums (no se ejecuta `makepkg -g`).
 - La instalación depende del veredicto final; si es FAIL y no estás en verify‑only, se aborta la instalación.
 
 ---
@@ -476,7 +476,7 @@ FAST=1 sh ./bin/aur-verify <paquete>
 
 ## Arquitectura
 
-La documentación para desarrolladores se movió a `docs/developer/README.es.md`. Consulta ese archivo para estructura de código, módulos, detalles internos y diagramas.
+La documentación para desarrolladores está en `../../README.dev.es.md`. Consulta ese archivo para estructura de código, módulos, detalles internos y diagramas.
 
 ---
 ## Notas de seguridad
@@ -530,7 +530,8 @@ sh ./bin/aur-verify https://github.com/OWNER/REPO
 
 ## Licencia
 
-Este proyecto está licenciado bajo CC BY‑NC‑SA 4.0. Ver [LICENSE](../../LICENSE).
+Este proyecto está licenciado bajo la Licencia MIT. Ver [LICENSE](../../LICENSE).
+
 
 ---
 
@@ -539,46 +540,3 @@ Este proyecto está licenciado bajo CC BY‑NC‑SA 4.0. Ver [LICENSE](../../LIC
 Mantenido por las personas colaboradoras del proyecto. Consulta [AUTHORS](AUTHORS) para créditos y agradecimientos.
 
 ---
-
-## Apéndice: CC BY-NC-SA 4.0 (referencia rápida)
-
-Este repositorio usa Creative Commons BY‑NC‑SA 4.0. A continuación, una referencia rápida sobre atribución y alcance.
-
-1) Confirma que se ajusta a tus objetivos
-
-- Permite uso personal, educativo y comunitario.  
-- Permite modificaciones (obras derivadas).  
-- Prohíbe uso comercial sin tu permiso.  
-- Requiere compartir las derivadas bajo la misma licencia (ShareAlike).  
-- Requiere atribución al autor original.
-
-2) Genera el texto legal y el ícono oficial
-
-- Visita el selector de licencias de Creative Commons y elige:  
-  - “Permitir adaptaciones de su obra” → “Sí, siempre que se comparta igual”  
-  - “Permitir usos comerciales de su obra” → “No”  
-- El sitio te dará:  
-  - El texto legal estándar  
-  - Un ícono oficial (SVG/PNG)  
-  - Un enlace permanente a la licencia
-
-3) Plantilla de atribución
-
-- Fragmento para README:
-
-```markdown
-Este proyecto está licenciado bajo [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
-© 2025 Luigi. Uso no comercial permitido con atribución y compartir igual.
-```
-
-- Cabecera en archivos (opcional):
-
-```bash
-# Licencia: CC BY-NC-SA 4.0 — © 2025 Luigi
-# Uso no comercial permitido con atribución y compartir igual.
-```
-
-4) Trazabilidad
-
-- Mantén `LICENSE` actualizado con la licencia vigente.  
-- Considera firmar con GPG los tags de release y el commit de cambio de licencia.

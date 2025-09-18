@@ -2,37 +2,35 @@
 
 > **Verify first, install later** — Security checker for AUR packages (and GitHub wrappers) with automatic installation via `yay` only if everything passes.
 
-<div align="left">
-  <img alt="Bash" src="https://img.shields.io/badge/Bash-4EAA25?logo=gnu-bash&logoColor=white" />
-  <img alt="Arch Linux" src="https://img.shields.io/badge/Arch_Linux-1793D1?logo=archlinux&logoColor=white" />
-  <img alt="AUR" src="https://img.shields.io/badge/AUR-1793D1?logo=archlinux&logoColor=white" />
-  <img alt="makepkg --verifysource" src="https://img.shields.io/badge/makepkg--verifysource-enabled-blue" />
-  <img alt="PGP" src="https://img.shields.io/badge/PGP-verification-informational?logo=gnupg&logoColor=white" />
-  <img alt="sha256" src="https://img.shields.io/badge/checksums-sha256-success" />
-  <img alt="yay" src="https://img.shields.io/badge/helper-yay-0A0A0A" />
-</div>
+[![Bash](https://img.shields.io/badge/Bash-4EAA25?logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?logo=archlinux&logoColor=white)](https://archlinux.org/)
+[![AUR](https://img.shields.io/badge/AUR-1793D1?logo=archlinux&logoColor=white)](https://aur.archlinux.org/)
+[![makepkg --verifysource](https://img.shields.io/badge/makepkg--verifysource-enabled-blue)](https://wiki.archlinux.org/title/Makepkg)
+[![PGP](https://img.shields.io/badge/PGP-verification-informational?logo=gnupg&logoColor=white)](https://gnupg.org/)
+[![sha256](https://img.shields.io/badge/checksums-sha256-success)](https://en.wikipedia.org/wiki/SHA-2)
+[![yay](https://img.shields.io/badge/helper-yay-0A0A0A)](https://github.com/Jguer/yay)
 
 ---
 
-Read this in Spanish: `docs/es/README.md`
+🌐 Lea esto en [Español](docs/es/README.es.md)
 
 ---
 
-## Documentation
+## 📚  Documentation
 
-- Docs index: `docs/README.md`
-- Developer docs: `docs/developer/README.md` (English) · `docs/developer/README.es.md` (Español)
+- Docs index: [Index](docs/INDEX.md)
+- Developer docs: [English](https://github.com/LuigiD5555/aur_verification/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_verification/blob/development/docs/developer/README.dev.es.md)
 
 ---
 
-## What does this tool do?
+## 🧭 What does this tool do?
 
 This Bash tool takes an AUR package name **or** a GitHub URL and:
 
-1) **Fetches from AUR directly** using the official snapshot/plain endpoints (no git clone), or **detects** the AUR package that wraps a GitHub URL. If the snapshot/plain endpoints are unavailable, it falls back to a shallow `git clone`.  
-2) **Audits** the `PKGBUILD` with static checks (common red flags).  
+1) **Fetches from AUR directly** using the official plain endpoint first. If fetching fails, it retries an alternative endpoint (`tree?plain=1`) and falls back to snapshot or shallow `git clone` only as a last resort.  
+2) **Audits** the `PKGBUILD` with static checks and a fast JavaScript parser when Node.js is available (Bash fallbacks otherwise; used automatically).  
 3) **Verifies the integrity** of the sources with `makepkg --verifysource`.  
-4) **Fixes** weak checksums (e.g., `sha1sums`/`SKIP`) by replacing them with `sha256sums` (only in normal mode).  
+4) **Fixes** weak checksums (e.g., `sha1sums`/`SKIP`) by replacing them with `sha256sums` (only in normal mode; skipped in `--verify-only` and `--fast`).  
 5) **(Optional)** **Strengthens** the policy in **strict mode**: allowed domains, no weak checksums, and PGP verification when `.sig` files exist.  
 6) If everything is clean, it **installs** automatically with `yay -S` (unless you use `--verify-only`).
 
@@ -40,7 +38,7 @@ This Bash tool takes an AUR package name **or** a GitHub URL and:
 
 ---
 
-## Quick start
+## 🚀 Quick start
 
 Run it via the modular entrypoint (recommended):
 
@@ -99,6 +97,16 @@ paru -Syu oreo-nord-cursors-git
 pikaur -S oreo-nord-cursors-git
 trizen -S oreo-nord-cursors-git
 pamac build oreo-nord-cursors-git
+```
+
+### Automatic settings
+
+Run the installer to automatically create the symlinks and ensure the order in the PATH:
+
+```bash
+bash scripts/install-aur-guard.sh            # user mode (recommended)
+# or
+sudo bash scripts/install-aur-guard.sh --system  # system-wide in /usr/local/bin
 ```
 
 ---
@@ -172,7 +180,7 @@ Developer note: helper list (extendable)
 
 ---
 
-## Requirements
+## 📦 Requirements
 
 - Arch Linux or derivative with AUR access.  
 - Tools: `git`, `curl`, `makepkg` (part of `pacman`), and an AUR helper: `yay` (default).  
@@ -184,7 +192,7 @@ Developer note: helper list (extendable)
 
 ---
 
-## Options and variables
+## 🔧 Options and variables
 
 **Flags**:
 
@@ -204,6 +212,7 @@ Developer note: helper list (extendable)
   - If `.sig` files exist in `source=()`, it **must** pass `makepkg --verifysource` (PGP).  
   - Shows a **summary** of the functions `prepare()`, `build()`, `package()`.  
 - `YAY_BIN=/path/to/yay` — Change the yay binary.
+- `AUR_FORCE_IPV4=1` — Force IPv4 in all AUR requests (useful when IPv6 routes are flaky/slow).
 
 Reporting and language:
 
@@ -215,7 +224,7 @@ Reporting and language:
 
 ---
 
-## Verification modes and depth
+## 🧪 Verification modes and depth
 
 Use these knobs to control how deep the verification goes and how much is shown:
 
@@ -238,16 +247,16 @@ When to use which
 Notes
 
 - Deep verification (`DEEP=1`) requires network to fetch sources; it is skipped if `--fast` is set.
+- In `--verify-only`, checksum auto‑rewrite is not attempted (no `makepkg -g` downloads).
 - Installation path still depends on the overall summary; if it’s FAIL and you’re not in verify‑only, installation is aborted.
 
 ---
 
-## Node CLI: pkgb-parse (optional)
+## 🧩 Node CLI: pkgb-parse (optional)
 
 The project ships a modular Node.js CLI to parse PKGBUILD files quickly and feed extra signals into the Bash reports. It is optional: if Node is unavailable, Bash uses grep/awk heuristics.
 
 - Entry point: `bin/pkgb-parse`
- 
 
 Examples:
 
@@ -445,7 +454,7 @@ FAST=1 sh ./bin/aur-verify <package>
 
 ## Architecture
 
-Developer documentation has moved to `docs/developer/README.md`. See that file for code structure, modules, internals, and diagrams.
+Developer documentation is in `README.dev.md`. See that file for code structure, modules, internals, and diagrams.
 
 ---
 ## Security notes
@@ -499,55 +508,9 @@ sh ./bin/aur-verify https://github.com/OWNER/REPO
 
 ## License
 
-This project is licensed under CC BY‑NC‑SA 4.0. See [LICENSE](LICENSE).
+This project is licensed under the MIT License. See [LICENSE](./LICENSE) for more details.
 
----
 
 ### Credits
 
-Maintained by the project contributors. See [AUTHORS](AUTHORS) for credits and acknowledgements.
-
----
-
-## Appendix: CC BY‑NC‑SA 4.0 quick reference
-
-This repository uses Creative Commons BY‑NC‑SA 4.0. The following is a quick reference for attribution and scope.
-
-1) Confirm it matches your goals
-
-- Allows personal, educational, and community use.  
-- Allows modifications (derivative works).  
-- Prohibits commercial use without your permission.  
-- Requires sharing derivatives under the same license (ShareAlike).  
-- Requires attribution to the original author.
-
-2) Generate the legal text and official icon
-
-- Visit the Creative Commons license chooser and select:  
-  - “Allow adaptations of your work” → “Yes, as long as others share alike”  
-  - “Allow commercial uses of your work” → “No”  
-- The site will provide:  
-  - The standard legal text  
-  - An official icon (SVG/PNG)  
-  - A permanent link to the license page
-
-3) Attribution template
-
-- README snippet:
-
-```markdown
-This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
-© 2025 Luigi. Non‑commercial use allowed with attribution and ShareAlike.
-```
-
-- Source header (optional):
-
-```bash
-# License: CC BY-NC-SA 4.0 — © 2025 Luigi
-# Non‑commercial use permitted with attribution and ShareAlike.
-```
-
-4) Traceability
-
-- Keep `LICENSE` up to date with the current license.  
-- Consider signing release tags and the license‑change commit if you use GPG.
+Maintained by the project contributors. See [AUTHORS](./AUTHORS) for credits and acknowledgements.
