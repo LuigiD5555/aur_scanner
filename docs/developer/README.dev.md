@@ -163,6 +163,7 @@ Top-level
 - `bin/aur-guard`: Wrapper to pre‑check AUR packages before delegating to `yay/paru/pikaur/trizen/pamac`.
 - `bin/pkgb-parse`: Optional Node CLI to parse PKGBUILD for diagnostics/compact outputs.
 - `scripts/install-aur-guard.sh`: Installs symlinks for aur‑guard into user/system PATH.
+- `scripts/uninstall-aur-guard.sh`: Removes aur‑guard helper symlinks (user/system).
 - `scripts/run-tests.sh`: Runs bats + Node parser tests (requires `bats` and Node ≥ 18).
 - `scripts/validate-sources.sh`: Checks that `source "..."` imports are valid after refactors.
 

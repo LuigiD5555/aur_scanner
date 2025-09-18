@@ -107,6 +107,10 @@ Ejecuta el instalador para crear los symlinks automáticamente y asegurar el ord
 bash scripts/install-aur-guard.sh            # modo usuario (recomendado)
 # o
 sudo bash scripts/install-aur-guard.sh --system  # a nivel sistema en /usr/local/bin
+
+# Revertir los symlinks cuando quieras
+bash scripts/uninstall-aur-guard.sh
+sudo bash scripts/uninstall-aur-guard.sh --system
 ```
 
 ---

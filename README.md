@@ -19,7 +19,7 @@
 ## 📚  Documentation
 
 - Docs index: [Index](docs/INDEX.md)
-- Developer docs: [English](https://github.com/LuigiD5555/aur_verification/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_verification/blob/development/docs/developer/README.dev.es.md)
+- Developer docs: [English](https://github.com/LuigiD5555/aur_verifier/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_verifier/blob/development/docs/developer/README.dev.es.md)
 
 ---
 
@@ -107,6 +107,10 @@ Run the installer to automatically create the symlinks and ensure the order in t
 bash scripts/install-aur-guard.sh            # user mode (recommended)
 # or
 sudo bash scripts/install-aur-guard.sh --system  # system-wide in /usr/local/bin
+
+# Undo symlinks later if needed
+bash scripts/uninstall-aur-guard.sh
+sudo bash scripts/uninstall-aur-guard.sh --system
 ```
 
 ---
@@ -150,6 +154,10 @@ Run the installer to create the symlinks automatically and ensure PATH order:
 bash scripts/install-aur-guard.sh            # user mode (recommended)
 # or
 sudo bash scripts/install-aur-guard.sh --system  # system-wide into /usr/local/bin
+
+# Undo symlinks later if needed
+bash scripts/uninstall-aur-guard.sh
+sudo bash scripts/uninstall-aur-guard.sh --system
 ```
 
 Behavior
