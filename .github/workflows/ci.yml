@@ -34,3 +34,9 @@ jobs:
 
       - name: Run test suite
         run: bash scripts/run-tests.sh
+      
+      - name: Create needed directories
+        run: mkdir -p bin lib scripts
+      
+      - name: List directories for verification
+        run: ls -la bin lib scripts
