@@ -1,4 +1,4 @@
-# Verificador AUR (Bash)
+# AUR Scanner (Bash)
 
 > **Verifica primero, instala después** — Verificador de seguridad para paquetes de AUR (y envolturas de GitHub) con instalación automática vía `yay` sólo si todo pasa.
 
@@ -19,7 +19,7 @@
 ## 📚 Documentación
 
 - Índice de docs: [Índice](../INDEX.md)
-- Docs de desarrollo: [Español](https://github.com/LuigiD5555/aur_verification/blob/development/docs/developer/README.dev.es.md) | [English](https://github.com/LuigiD5555/aur_verification/blob/development/docs/developer/README.dev.md)
+- Docs de desarrollo: [Español](https://github.com/LuigiD5555/aur_scannner/blob/development/docs/developer/README.dev.es.md) | [English](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md)
 
 ---
 
