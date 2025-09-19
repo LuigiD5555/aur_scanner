@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 José Luis López López Prieto
+# Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
 # Author GitHub: https://github.com/LuigiD5555
 # js_parser_bridge.sh — thin Bash wrappers around the Node PKGBUILD parser
 

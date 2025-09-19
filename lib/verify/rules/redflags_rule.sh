@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 José Luis López López Prieto
+# Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
 # Author GitHub: https://github.com/LuigiD5555
 # redflags_rule.sh — static red flags handling (JS preferred when available)
 
@@ -36,10 +36,10 @@ rule_red_flags() {
     fi
   fi
 
-  # 2) Bash fallback heuristics (conservadoras) para el fixture de tests:
+  # 2) Bash fallback heuristics (conservative) for the test fixture:
   #    - pipe a sh/bash (e.g., curl ... | sh)
-  #    - uso de eval
-  #    - uso de "bash -c"
+  #    - use of eval
+  #    - use of "bash -c"
   local has_pipe_sh=0
   local has_eval=0
   local has_bash_c=0

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 José Luis López López Prieto
+# Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
 # Author GitHub: https://github.com/LuigiD5555
 # render_summary.sh — Simple reporting for verification results (uses i18n messages)
 
