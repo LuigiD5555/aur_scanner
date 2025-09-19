@@ -1,285 +1,179 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 José Luis López López Prieto
+# Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
 # Author GitHub: https://github.com/LuigiD5555
-# aur-guard — run AUR verification before yay/paru/pamac (and similar helpers)
-
+# aur-guard — run AUR verification before yay/paru/pikaur/trizen/pamac (and similar helpers)
+#
 # Purpose
-# - This script can be placed as a symlink named after your helper (e.g. "yay" → aur-guard),
-#   or invoked explicitly as: `aur-guard yay -S <pkgs>`.
-# - It detects target packages, verifies those that exist in AUR via `bin/aur-verify --verify-only`,
-#   and if everything passes, it delegates to the real binary with the same arguments.
+# - Can be symlinked as your helper (e.g., ~/.local/bin/yay -> aur-guard) or used explicitly:
+#     aur-guard yay -S <pkgs>
+# - Detects target packages, runs bin/aur-verify --verify-only, and if OK delegates to the real helper.
+#
+# Critical fix
+# - Do NOT clobber "$@" when reading helpers.list. We parse into variables (read -r helper kind) and keep args intact.
 
 set -euo pipefail
 IFS=$'\n\t'
 
-#!/usr/bin/env bash
-# Resolve script real path (supports symlinks)
+# ---------- Logging ----------
+log()   { printf '[aur-guard] %s\n' "$*"; }
+dbg()   { [[ "${GUARD_DEBUG:-0}" = 1 ]] && printf '[aur-guard][debug] %s\n' "$*"; true; }
+warn()  { printf '[aur-guard][warn] %s\n' "$*" >&2; }
+die()   { printf '[aur-guard][error] %s\n' "$*" >&2; exit 1; }
+
+# ---------- Resolve paths ----------
 _self_path="${BASH_SOURCE[0]}"
 if command -v readlink >/dev/null 2>&1; then
-  _resolved="$(readlink -f "$_self_path" 2>/dev/null || echo "$_self_path")"
-else
-  _resolved="$_self_path"
+  _resolved="$(readlink -f "$_self_path" 2>/dev/null || true)"
+  [[ -n "${_resolved:-}" ]] && _self_path="$_resolved"
 fi
-SCRIPT_DIR=$(cd -- "$(dirname -- "$_resolved")" && pwd)
-ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
+SCRIPT_DIR="$(cd -- "$(dirname -- "$_self_path")" && pwd)"
+ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
 HELPERS_LIST="$ROOT_DIR/lib/guard/helpers.list"
+AUR_VERIFY_BIN="$ROOT_DIR/bin/aur-verify"
 
-log() { printf '[aur-guard] %s\n' "$*" >&2; }
-die() { printf '[aur-guard:ERROR] %s\n' "$*" >&2; exit 1; }
+# Keep the original arguments intact for the whole run
+orig_args=("$@")
 
-# Allow bypassing the wrapper entirely
-if [ "${AUR_GUARD_BYPASS:-0}" = "1" ]; then
-  # Will call the real binary later without verification
-  :
+# ---------- Load helper kinds WITHOUT altering "$@" ----------
+# helpers.list format (first two whitespace-separated fields):
+#   yay     pacman
+#   pamac   pamac
+declare -A GUARD_HELPER_KIND=()
+if [[ -f "$HELPERS_LIST" ]]; then
+  while IFS= read -r line; do
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    read -r helper kind _ <<<"$line"
+    [[ -z "${helper:-}" || -z "${kind:-}" ]] && continue
+    GUARD_HELPER_KIND["$helper"]="$kind"
+  done < "$HELPERS_LIST"
+else
+  warn "helpers.list not found at: $HELPERS_LIST (defaulting to pacman style)"
 fi
 
-invoked_as=$(basename -- "${0}")
-target_tool=${1:-}
-
-# If the wrapper is symlinked as "yay"/"paru"/"pamac"/etc., respect that name.
+# ---------- Determine target helper and arguments ----------
+invoked_as="$(basename -- "$0")"
+target_tool=""
 case "$invoked_as" in
-  aur-guard) :;;
-  *) target_tool="$invoked_as";;
+  aur-guard)
+    [[ $# -ge 1 ]] || die "Usage: aur-guard <helper> [args...]"
+    target_tool="$1"; shift 1
+    ;;
+  *)
+    # Symlink mode: invoked as "yay", "paru", "pamac", etc.
+    target_tool="$invoked_as"
+    ;;
 esac
 
-if [ "$invoked_as" = "aur-guard" ]; then
-  # Explicit mode: aur-guard <tool> [args...]
-  if [ $# -lt 1 ]; then
-    cat >&2 <<EOF
-Usage: aur-guard <tool> [args...]
-       aur-guard yay    -S <pkg1> <pkg2>
-       aur-guard paru   -Syu <pkg>
-       aur-guard pikaur -S <pkg>
-       aur-guard trizen -S <pkg>
-       aur-guard pamac  build <pkg>
+# Defensive: restore original args (in case anything touched them earlier)
+set -- "${orig_args[@]}"
 
-Alternatively, create symlinks:
-  ln -s "$(realpath "$0")" ~/.local/bin/yay
-  ln -s "$(realpath "$0")" ~/.local/bin/paru
-  ln -s "$(realpath "$0")" ~/.local/bin/pikaur
-  ln -s "$(realpath "$0")" ~/.local/bin/trizen
-  ln -s "$(realpath "$0")" ~/.local/bin/pamac
-Ensure ~/.local/bin is at the beginning of your PATH.
-EOF
-    exit 2
+# ---------- Find the real helper binary (avoid recursion) ----------
+find_real_cmd() {
+  local tool="$1" upper override_var override_path path cand
+  upper="$(printf '%s' "$tool" | tr '[:lower:]' '[:upper:]')"
+  override_var="AUR_GUARD_REAL_${upper}"
+  override_path="${!override_var:-}"
+
+  if [[ -n "$override_path" && -x "$override_path" ]]; then
+    printf '%s\n' "$override_path"
+    return 0
   fi
-  shift 1
-fi
 
-# ===================== Helpers =====================
-
-# Load helper classification (developer-maintained)
-declare -A GUARD_HELPER_KIND
-if [ -f "$HELPERS_LIST" ]; then
-  while IFS= read -r line; do
-    [ -n "${line// /}" ] || continue
-    case "$line" in \#*) continue;; esac
-    set -- $line
-    [ $# -ge 2 ] || continue
-    GUARD_HELPER_KIND[$1]="$2"
-  done < "$HELPERS_LIST"
-fi
-
-# ===================== Wrapper flags (convenience) =====================
-
-# Allow users to pass verifier flags alongside helper args and strip them
-# Supported: --strict, --fast, --verbose, --quiet, --metadata, --verify-only
-WRAP_ONLY_VERIFY=0
-filtered_args=()
-for arg in "$@"; do
-  case "$arg" in
-    --strict)   export STRICT=1;   continue;;
-    --deep)     export DEEP=1;     continue;;
-    --fast)     export FAST=1;     continue;;
-    --verbose)  export VERBOSE=1;  continue;;
-    --quiet)    export QUIET=1;    continue;;
-    --metadata) export SHOW_METADATA=1; continue;;
-    --verify-only) WRAP_ONLY_VERIFY=1; continue;;
-  esac
-  filtered_args+=("$arg")
-done
-set -- "${filtered_args[@]}"
-
-find_real_cmd() { # $1=tool -> print path to the real binary
-  local tool="$1"
-  local upper; upper=$(printf '%s' "$tool" | tr '[:lower:]' '[:upper:]')
-  local override_var="AUR_GUARD_REAL_${upper}"
-  local override_path="${!override_var:-}"
-  if [ -n "$override_path" ] && [ -x "$override_path" ]; then
-    printf '%s\n' "$override_path"; return 0
-  fi
-  # Prefer /usr/bin if it exists and is not this wrapper itself
-  if [ -x "/usr/bin/$tool" ] && [ "$(readlink -f "/usr/bin/$tool" 2>/dev/null || echo /usr/bin/$tool)" != "$(readlink -f "$0" 2>/dev/null || echo "$0")" ]; then
-    printf '/usr/bin/%s\n' "$tool"; return 0
-  fi
-  # Scan PATH and pick the first occurrence that isn't this script
-  local p d
-  IFS=: read -r -a p <<< "${PATH:-}"
-  for d in "${p[@]}"; do
-    [ -n "$d" ] || continue
-    if [ -x "$d/$tool" ]; then
-      local cand; cand=$(readlink -f "$d/$tool" 2>/dev/null || echo "$d/$tool")
-      local self; self=$(readlink -f "$0" 2>/dev/null || echo "$0")
-      if [ "$cand" != "$self" ]; then printf '%s\n' "$d/$tool"; return 0; fi
-    fi
-  done
-  return 1
-}
-
-is_aur_pkg() { # $1=name -> return 0 if exact package exists in AUR
-  local name="$1"
-  case "$name" in
-    ''|/*|*://*) return 1;; # ignore paths/URLs
-  esac
-  local url="https://aur.archlinux.org/rpc/v5/info/${name}"
-  # conservative timeouts
-  if command -v curl >/dev/null 2>&1; then
-    local json
-    json=$(curl --fail --silent --show-error --location --compressed --connect-timeout 3 --max-time 6 "$url" 2>/dev/null || true)
-    [ -n "$json" ] || return 1
-    printf '%s' "$json" | grep -Eq '"resultcount"[[:space:]]*:[[:space:]]*1' \
-      && printf '%s' "$json" | grep -Eq '"Name"[[:space:]]*:[[:space:]]*"'"$name"'"'
-  else
-    return 1
-  fi
-}
-
-# Batch AUR existence check using RPC v5 info?arg[]=a&arg[]=b...
-aur_pkgs_exist_batch() { # stdin names -> stdout existing names (one per line)
-  local -a names batch
-  mapfile -t names
-  [ ${#names[@]} -gt 0 ] || return 0
-  local i=0 size=80 # keep batches small to avoid URL limits
-  while [ $i -lt ${#names[@]} ]; do
-    batch=("${names[@]:i:size}")
-    i=$((i+size))
-    local url="https://aur.archlinux.org/rpc/v5/info"
-    local qs=""
-    local n
-    for n in "${batch[@]}"; do
-      qs+="&arg[]=$(printf '%s' "$n" | sed 's/\//%2F/g; s/:/%3A/g; s/\?/%3F/g; s/&/%26/g; s/\+/%2B/g')"
-    done
-    qs="?${qs#&}"
-    if command -v curl >/dev/null 2>&1; then
-      local json
-      json=$(curl --fail --silent --show-error --location --compressed --connect-timeout 3 --max-time 6 "$url$qs" 2>/dev/null || true)
-      [ -n "$json" ] || continue
-      # Extract all exact Name fields present in results
-      printf '%s\n' "$json" | grep -o '"Name":"[^"]\+"' | sed 's/.*:"//;s/"$//'
-    fi
-  done | sort -u
-}
-
-collect_targets_pacman_style() { # args... -> print candidate package tokens (non-options)
-  # Only consider when -S/--sync is present; if -U is present, skip (local file install)
-  local has_sync=0 has_upgrade=0
-  for a in "$@"; do
-    case "$a" in
-      -S|--sync) has_sync=1;;
-      -U|--upgrade) has_upgrade=1;;
-    esac
-  done
-  [ "$has_sync" = 1 ] || return 0
-  [ "$has_upgrade" = 1 ] && return 0
-  for a in "$@"; do
-    case "$a" in
-      -*) :;;
-      *.pkg.tar.*) :;;
-      *://*) :;;
-      *) printf '%s\n' "$a";;
-    esac
-  done
-}
-
-collect_targets_pamac() { # args... -> print candidate package tokens (based on subcommand)
-  local sub=""
-  for a in "$@"; do
-    if [ -z "$sub" ] && [ "${a#-}" = "$a" ]; then
-      sub="$a"; shift; break
-    fi
-  done
-  case "$sub" in
-    build|install|upgrade) :;;
-    *) return 0;;
-  esac
-  for a in "$@"; do
-    case "$a" in
-      -*) :;;
-      *.pkg.tar.*) :;;
-      *://*) :;;
-      *) printf '%s\n' "$a";;
-    esac
-  done
-}
-
-verify_aur_targets() { # $1=real_helper path; shift; args...
-  local real_helper="$1"; shift || true
-  local toolbase; toolbase=$(basename -- "$real_helper")
-  local -a candidates=() aur_targets=()
-
-  case "${GUARD_HELPER_KIND[$toolbase]:-$toolbase}" in
-    pacman) mapfile -t candidates < <(collect_targets_pacman_style "$@") ;;
-    pamac)  mapfile -t candidates < <(collect_targets_pamac "$@") ;;
-    *)      mapfile -t candidates < <(collect_targets_pacman_style "$@") ;;
-  esac
-
-  [ "${#candidates[@]}" -gt 0 ] || return 0
-
-  # Filter: only packages that exist in AUR (batched for performance)
-  mapfile -t aur_targets < <(printf '%s\n' "${candidates[@]}" | aur_pkgs_exist_batch)
-
-  [ "${#aur_targets[@]}" -gt 0 ] || return 0
-
-  # Special rule for pamac: only verify AUR when using the explicit AUR syntax 'pamac build'
-  if [ "${GUARD_HELPER_KIND[$toolbase]:-$toolbase}" = pamac ]; then
-    # Detect subcommand (first non-flag token)
-    local sub="" a
-    for a in "$@"; do
-      if [ -z "$sub" ] && [ "${a#-}" = "$a" ]; then sub="$a"; break; fi
-    done
-    if [ "$sub" != build ]; then
-      # Do not run verification for AUR on pamac install/upgrade
-      if [ "${VERBOSE:-0}" = "1" ]; then
-        log "pamac subcommand '$sub' detected; skipping AUR pre-check for: ${aur_targets[*]} (use 'pamac build' for AUR)"
-      fi
+  if path="$(command -v -- "$tool" 2>/dev/null)"; then
+    local real="$(readlink -f "$path" 2>/dev/null || printf '%s' "$path")"
+    local self="$(readlink -f "$_self_path" 2>/dev/null || printf '%s' "$_self_path")"
+    if [[ "$real" != "$self" ]]; then
+      printf '%s\n' "$path"
       return 0
     fi
   fi
 
-  log "Verifying in AUR: ${aur_targets[*]}"
-
-  local ok=1
-  local pkg
-  for pkg in "${aur_targets[@]}"; do
-    # Pass flags/env to the verifier; force --verify-only
-    # Set YAY_BIN to the real helper (paru/yay/etc) so metadata can be shown
-    if ! ( cd "$ROOT_DIR" && YAY_BIN="$real_helper" bash "$ROOT_DIR/bin/aur-verify" --verify-only -- "$pkg" ); then
-      ok=0
+  for cand in "/usr/bin/$tool" "/bin/$tool" "/usr/local/bin/$tool"; do
+    if [[ -x "$cand" ]]; then
+      local real="$(readlink -f "$cand" 2>/dev/null || printf '%s' "$cand")"
+      local self="$(readlink -f "$_self_path" 2>/dev/null || printf '%s' "$_self_path")"
+      if [[ "$real" != "$self" ]]; then
+        printf '%s\n' "$cand"
+        return 0
+      fi
     fi
   done
-  [ "$ok" = 1 ]
+
+  return 1
 }
 
-# ===================== Main =====================
+# ---------- Candidate collection ----------
+collect_targets_pacman_style() {
+  # pacman-like: packages commonly after -S / -U and any non-flag tokens
+  local args=("$@") a have_action=0 targets=()
+  for a in "${args[@]}"; do
+    if [[ "$a" == -* ]]; then
+      [[ "$a" =~ ^-S ]] && have_action=1
+      [[ "$a" =~ ^-U ]] && have_action=1
+      continue
+    fi
+    targets+=("$a")
+  done
+  if [[ $have_action -eq 1 && ${#targets[@]} -gt 0 ]]; then
+    printf '%s\n' "${targets[@]}"
+  fi
+}
 
-[ -n "$target_tool" ] || die "Unable to determine target tool (yay/paru/pamac)."
+collect_targets_pamac_style() {
+  # pamac: subcommands like build/install/upgrade followed by pkgs
+  local args=("$@") sub="" a targets=()
+  for a in "${args[@]}"; do
+    if [[ -z "$sub" && "${a#-}" = "$a" ]]; then
+      sub="$a"; continue
+    fi
+    if [[ "$a" != -* ]]; then
+      targets+=("$a")
+    fi
+  done
+  case "$sub" in
+    build|install|upgrade)
+      [[ ${#targets[@]} -gt 0 ]] && printf '%s\n' "${targets[@]}"
+      ;;
+    *) : ;;
+  esac
+}
 
-real_cmd=$(find_real_cmd "$target_tool") || die "Could not find real binary for '$target_tool' in PATH. Use AUR_GUARD_REAL_${target_tool^^}=/path/to/binary if needed."
+# ---------- Verification wrapper (keeps your previous flow name) ----------
+verify_aur_targets() {
+  local real_helper="$1"; shift
+  local toolbase; toolbase="$(basename -- "$real_helper")"
+  local kind="${GUARD_HELPER_KIND[$toolbase]:-$toolbase}"
+  local -a candidates=()
 
-if [ "${AUR_GUARD_BYPASS:-0}" = "1" ]; then
-  exec "$real_cmd" "$@"
-fi
+  case "$kind" in
+    pamac)    mapfile -t candidates < <(collect_targets_pamac_style "$@") ;;
+    pacman|*) mapfile -t candidates < <(collect_targets_pacman_style "$@") ;;
+  esac
 
-# Run pre-verification only for relevant AUR packages; abort on failure
+  if [[ ${#candidates[@]} -eq 0 ]]; then
+    dbg "no candidates extracted for verification"
+    return 0
+  fi
+
+  if [[ ! -x "$AUR_VERIFY_BIN" ]]; then
+    warn "aur-verify not found at: $AUR_VERIFY_BIN — delegating without verification"
+    return 0
+  fi
+
+  dbg "verifying candidates: ${candidates[*]}"
+  "$AUR_VERIFY_BIN" --verify-only -- "${candidates[@]}"
+}
+
+# ---------- Main ----------
+real_cmd="$(find_real_cmd "$target_tool")" || die "Cannot locate real helper for '$target_tool'."
+dbg "real_cmd=$real_cmd"
+
 if ! verify_aur_targets "$real_cmd" "$@"; then
-  die "Pre-verification failed. Aborting '$target_tool'."
+  warn "verification failed — aborting"
+  exit 2
 fi
 
-# If user requested verify-only at wrapper level, stop after pre-check
-if [ "$WRAP_ONLY_VERIFY" = 1 ]; then
-  exit 0
-fi
-
-# Transparent delegation: do not modify arguments or behavior
+dbg "verification passed (or skipped) — delegating to real helper"
 exec "$real_cmd" "$@"
