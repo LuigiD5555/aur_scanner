@@ -1,98 +1,85 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 José Luis López López Prieto
+# Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
 # Author GitHub: https://github.com/LuigiD5555
-# install-aur-guard.sh — Set up aur-guard symlinks automatically
+# install-aur-guard.sh — Orchestrates staging + symlinks, sourcing small modules.
 
 set -euo pipefail
 IFS=$'\n\t'
 
-usage() {
-  cat <<'EOF'
-Usage: scripts/install-aur-guard.sh [--user|--system]
+# --- Locate repo root and source modules (in order) ---
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
-Options:
-  --user          Install symlinks into ~/.local/bin (default)
-  --system        Install symlinks into /usr/local/bin (requires root)
+# Source modules
+. "$REPO_ROOT/lib/install/env.sh"
+. "$REPO_ROOT/lib/install/common.sh"
+. "$REPO_ROOT/lib/install/stage.sh"
+. "$REPO_ROOT/lib/install/node.sh"
+. "$REPO_ROOT/lib/install/symlinks.sh"
 
-Notes:
-  - Creates symlinks named after known AUR helpers so that they run pre-checks
-    via bin/aur-guard before delegating to the real binary.
-  - Puts ~/.local/bin at the beginning of PATH in ~/.profile if needed (user mode).
-  - You can safely re-run this script to refresh symlinks.
-EOF
-}
-
-print_banner() {
-  cat <<'ASCII'
-       ,----,.       ,----,.       ,----,.       ,----,. 
-     ,'¨¨¨,'5|     ,'¨¨¨,'5|     ,'¨¨¨,'5|     ,'¨¨¨,'5| 
-   ,'¨¨¨.'555|   ,'¨¨¨.'555|   ,'¨¨¨.'555|   ,'¨¨¨.'555| 
- ,----.'5555.' ,----.'5555.' ,----.'5555.' ,----.'5555.' 
- |¨¨¨¨|555.'   |¨¨¨¨|555.'   |¨¨¨¨|555.'   |¨¨¨¨|555.'   
- :¨¨¨¨:55|--,  :¨¨¨¨:55|--,  :¨¨¨¨:55|--,  :¨¨¨¨:55|--,  
- :¨▗▄▖|▗▖;▗▖▗▄▄▖¨¨▗▄▄▖5▗▄▄▖\▗▄▖¨▗▖|5▗▖▗▖5\▗▖▗▄▄▄▖▗▄▄▖'5\ 
- |▐▌¨▐▌▐▌5▐▌▐▌ ▐▌▐▌¨|5▐▌555▐▌|▐▌▐▛▚▖▐▌▐▛▚▖▐▌▐▌¨¨|▐▌5▐▌5|
- `▐▛▀▜▌▐▌\▐▌▐▛▀▚▖-▝▀▚▖▐▌555▐▛▀▜▌▐▌'▝▜▌▐▌5▝▜▌▐▛▀▀▘▐▛▀▚▖5; 
-  ▐▌ ▐▌▝▚▄▞▘▐▌ ▐▌▗▄▄▞▘▝▚▄▄▖▐▌ ▐▌▐▌ \▐▌▐▌5|▐▌▐▙▄▄▖▐▌ ▐▌5| 
- /¨¨¨/\/  /55: /¨¨¨/\/  /55: /¨¨¨/\/  /55: /¨¨¨/\/  /55: 
-/___/55',-555./___/55',-555./___/55',-555./___/55',-555. 
-\'''\5555555; \ ''\5555555; \ ''\5555555; \ ''\5555555;  
- \¨¨¨\5555.'   \¨¨¨\5555.'   \¨¨¨\5555.'   \¨¨¨\5555.'   
-  `--`-,-'      `--`-,-'      `--`-,-'      `--`-,-'     
-ASCII
-  echo
-}
-
+# ---------- Args ----------
 mode="user"
-
-# Parse args first (so --help no imprime el banner)
-for arg in "$@"; do
-  case "$arg" in
-    --user) mode="user" ;;
+while (($#)); do
+  case "$1" in
+    --user)   mode="user" ;;
     --system) mode="system" ;;
-    --wrap-pacman) echo "--wrap-pacman is no longer supported" >&2; exit 2 ;;
     -h|--help) usage; exit 0 ;;
-    *) echo "Unknown option: $arg" >&2; usage; exit 2 ;;
+    *) die "Unknown option: $1" ;;
   esac
+  shift
 done
 
-# Show branding only for real runs
 print_banner
 
-# Resolve repo root (this script is in scripts/)
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-GUARD="$ROOT_DIR/bin/aur-guard"
-[ -x "$GUARD" ] || { echo "bin/aur-guard not found or not executable" >&2; exit 1; }
-
-# Known helpers to wrap (add more if needed)
-helpers=(yay paru pikaur trizen pamac)
-
-if [ "$mode" = "user" ]; then
-  dest="$HOME/.local/bin"
-  mkdir -p "$dest"
-  for h in "${helpers[@]}"; do
-    ln -sf "$GUARD" "$dest/$h"
-    echo "[install] Linked $dest/$h -> $GUARD"
-  done
-  # Ensure ~/.local/bin is at the beginning of PATH on next logins
-  prof="$HOME/.profile"
-  ensure_line='export PATH="$HOME/.local/bin:$PATH"'
-  if ! grep -Fqx "$ensure_line" "$prof" 2>/dev/null; then
-    echo "$ensure_line" >> "$prof"
-    echo "[install] Added ~/.local/bin to PATH in $prof"
-  fi
-  echo "[install] Done. Open a new shell or run: export PATH=\"$HOME/.local/bin:$PATH\""
+# ---------- Prefixes ----------
+if [[ "$mode" == "user" ]]; then
+  PREFIX_LIB="$HOME/.local/lib/aur-guard"
+  DEST_BIN="$HOME/.local/bin"
 else
-  dest="/usr/local/bin"
-  if [ ! -w "$dest" ]; then
-    echo "[install] /usr/local/bin requires root. Try: sudo \"$0\" --system" >&2
-    exit 1
-  fi
-  for h in "${helpers[@]}"; do
-    ln -sf "$GUARD" "$dest/$h"
-    echo "[install] Linked $dest/$h -> $GUARD"
-  done
-  echo "[install] Done. Ensure /usr/local/bin precedes /usr/bin in PATH."
+  [[ "$EUID" -eq 0 ]] || die "Use --system as root."
+  PREFIX_LIB="/usr/local/lib/aur-guard"
+  DEST_BIN="/usr/local/bin"
 fi
+
+# Safety guards
+[[ -n "$PREFIX_LIB" && -n "$DEST_BIN" ]] || die "Empty PREFIX_LIB/DEST_BIN."
+[[ "$PREFIX_LIB" != "/" && "$DEST_BIN" != "/" ]] || die "Refusing '/' as prefix."
+
+mkdir -p "$PREFIX_LIB" "$DEST_BIN"
+
+# ---------- Steps ----------
+ensure_node   # requires Node >= $MIN_NODE
+stage_runtime "$REPO_ROOT" "$PREFIX_LIB"
+
+# Resolve wrapper path
+GUARD_RESOLVED="$PREFIX_LIB/bin/$GUARD_BASENAME"
+if [[ ! -x "$GUARD_RESOLVED" && -x "$PREFIX_LIB/bin/aur-guard.sh" ]]; then
+  GUARD_RESOLVED="$PREFIX_LIB/bin/aur-guard.sh"
+fi
+[[ -x "$GUARD_RESOLVED" ]] || die "Wrapper not found/executable at $PREFIX_LIB/bin/{aur-guard,aur-guard.sh}"
+
+# Symlinks (launcher + helpers)
+link_launcher_and_helpers "$GUARD_RESOLVED" "$DEST_BIN" "${HELPERS[@]}"
+
+# PATH for user mode
+if [[ "$mode" == "user" ]]; then
+  case "$(detect_shell)" in
+    zsh)
+      ensure_path_line "$HOME/.zprofile"
+      ensure_path_line "$HOME/.zshrc"
+      [[ -n "${ZSH_VERSION-}" && -f "$HOME/.zprofile" ]] && . "$HOME/.zprofile" || true
+      command -v rehash >/dev/null 2>&1 && rehash || true
+      ;;
+    *)
+      ensure_path_line "$HOME/.profile"
+      ensure_path_line "$HOME/.bashrc"
+      [[ -n "${BASH_VERSION-}" && -f "$HOME/.profile" ]] && . "$HOME/.profile" || true
+      hash -r || true
+      ;;
+  esac
+fi
+
+log "Runtime staged at: $PREFIX_LIB"
+log "Symlinks in:       $DEST_BIN"
+echo "[install] Done. Open a new shell or run: export PATH=\"$HOME/.local/bin:\$PATH\""
