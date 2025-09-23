@@ -1,6 +1,6 @@
-# AUR Scanner (Bash)
+# Escáner AUR (Bash)
 
-> **Verifica primero, instala después** — Verificador de seguridad para paquetes de AUR (y envolturas de GitHub) con instalación automática vía `yay` sólo si todo pasa.
+> **Verifica primero, instala después** — Verificador de seguridad para paquetes AUR (y wrappers de GitHub) con instalación automática vía `yay` solo si todo pasa.
 
 [![Bash](https://img.shields.io/badge/Bash-4EAA25?logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
 [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?logo=archlinux&logoColor=white)](https://archlinux.org/)
@@ -9,538 +9,405 @@
 [![PGP](https://img.shields.io/badge/PGP-verification-informational?logo=gnupg&logoColor=white)](https://gnupg.org/)
 [![sha256](https://img.shields.io/badge/checksums-sha256-success)](https://en.wikipedia.org/wiki/SHA-2)
 [![yay](https://img.shields.io/badge/helper-yay-0A0A0A)](https://github.com/Jguer/yay)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/luigid5555)
 
 ---
 
-🌐 Read this in [English](../../README.md)
+🌐 Read this in [English](Projects/Code/Personal_Projects/Scripts/AUR%20Verifier%20Project/aur_verification/README.md)
 
 ---
 
 ## 📚 Documentación
 
-- Índice de docs: [Índice](../INDEX.md)
-- Docs de desarrollo: [Español](https://github.com/LuigiD5555/aur_scannner/blob/development/docs/developer/README.dev.es.md) | [English](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md)
+- Índice de documentos: [Index](INDEX.md)
+- Documentación para desarrolladores: [English](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
 
 ---
 
 ## 🧭 ¿Qué hace esta herramienta?
 
-Esta herramienta en Bash toma un nombre de paquete AUR **o** una URL de GitHub y:
+Esta herramienta toma un nombre de paquete de AUR **o** una URL de GitHub y:
 
-1) **Obtiene desde AUR** usando primero el endpoint “plain”. Si falla, reintenta con el alternativo (`tree?plain=1`) y solo como último recurso usa snapshot o `git clone` superficial.  
-2) **Audita** el `PKGBUILD` con controles estáticos y un parser JavaScript rápido cuando hay Node.js (fallback Bash si no; se usa automáticamente).  
-3) **Verifica** la integridad de las fuentes con `makepkg --verifysource`.  
-4) **Corrige** sumas débiles (p. ej. `sha1sums`/`SKIP`) reemplazándolas por `sha256sums` (solo en modo normal; se omite en `--verify-only` y `--fast`).  
-5) **(Opcional)** **Refuerza** la política en **modo estricto**: dominios permitidos, sin sumas débiles, y verificación PGP cuando hay `.sig`.  
-6) Si todo está limpio, **instala** automáticamente con `yay -S` (salvo que uses `--verify-only`).
+- Descarga el PKGBUILD desde AUR (plain → snapshot → git superficial como último recurso).
+- Audita banderas rojas estáticas, uso de HTTPS/dominios permitidos y políticas de sumas de verificación.
+- Verifica fuentes con `makepkg --verifysource` (cuando aplica).
+- **Modo estricto** endurece las políticas (sin sumas débiles, solo dominios permitidos, PGP cuando existe `.sig`).
+- Si todo está limpio, instala con `yay -S` (a menos que uses `--verify-only`).
 
-> Pensado para quienes no confían a ciegas en AUR: valida primero, instala después.
-
----
-
-## Uso rápido
-
-Ejecuta el punto de entrada modular (recomendado):
-
-- `sh ./bin/aur-verify <paquete|URL_de_GitHub>`
-- o `bash bin/aur-verify <paquete|URL_de_GitHub>`
-
-Instalar tras verificar un paquete AUR:
-
-```bash
-sh ./bin/aur-verify oreo-nord-cursors-git
-```
-
-Sólo verificar (no instalar):
-
-```bash
-sh ./bin/aur-verify --verify-only oreo-nord-cursors-git
-```
-
-Modo estricto (políticas más duras):
-
-```bash
-STRICT=1 sh ./bin/aur-verify oreo-nord-cursors-git
-```
-
-Verificación rápida (metadatos, sin descargas de `makepkg`):
-
-```bash
-FAST=1 sh ./bin/aur-verify <paquete-AUR>
-```
-
-Detectar y verificar a partir de un repositorio GitHub (busca el envoltorio AUR):
-
-```bash
-sh ./bin/aur-verify https://github.com/OWNER/REPO
-```
-
-Pre‑check antes de instalar (aur-guard):
-
-- Invocación explícita (sin cambiar el PATH):
-
-```bash
-bin/aur-guard yay -S oreo-nord-cursors-git
-bin/aur-guard paru -Syu oreo-nord-cursors-git
-bin/aur-guard pikaur -S oreo-nord-cursors-git
-bin/aur-guard trizen -S oreo-nord-cursors-git
-bin/aur-guard pamac build oreo-nord-cursors-git
-# pacman no instala AUR; el wrapper solo delega
-bin/aur-guard pacman -S neovim
-```
-
-- Drop‑in tras crear el symlink a `~/.local/bin/yay`:
-
-```bash
-yay -S oreo-nord-cursors-git
-paru -Syu oreo-nord-cursors-git
-pikaur -S oreo-nord-cursors-git
-trizen -S oreo-nord-cursors-git
-pamac build oreo-nord-cursors-git
-```
-
-### Configuración automática
-
-Ejecuta el instalador para crear los symlinks automáticamente y asegurar el orden en PATH:
-
-```bash
-bash scripts/install-aur-guard.sh            # modo usuario (recomendado)
-# o
-sudo bash scripts/install-aur-guard.sh --system  # a nivel sistema en /usr/local/bin
-
-# Revertir los symlinks cuando quieras
-bash scripts/uninstall-aur-guard.sh
-sudo bash scripts/uninstall-aur-guard.sh --system
-```
+> Diseñado para quienes no confían ciegamente en AUR: valida primero, instala después.
 
 ---
 
-## Wrapper de interceptación (aur-guard)
+## ✅ Qué verifica
 
-Si quieres forzar la verificación antes de usar tus helpers habituales (yay/paru/pamac), añade el wrapper universal y ponlo al principio del `PATH`:
+### 1) Banderas rojas en `PKGBUILD` (escaneo estático)
 
-```bash
-# Opciones de instalación (elige una):
-# 1) Invocación explícita
-aur-guard yay -S <pkg1> <pkg2>
+Primero intenta con señales del parser en JS (`bin/pkgb-parse`); si no está disponible, recurre a heurísticas en Bash usando reglas en `lib/rules/redflags.list`. Busca patrones como:
 
-# 2) Symlinks en ~/.local/bin (recomendado)
-mkdir -p ~/.local/bin
-ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/yay
-ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/paru
-ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/pikaur
-ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/trizen
-ln -sf "$(pwd)/bin/aur-guard" ~/.local/bin/pamac
-export PATH="$HOME/.local/bin:$PATH"
+- **Descargas autoejecutables**: `curl|wget ... | (sh|bash)`
+- **Ejecución dinámica**: `eval`, `bash -c`, sustitución de comandos `$()`
+- **Decodificación/cifrado en línea**: `base64 -d`, `openssl enc`
+- **Sockets crudos en shell**: `/dev/tcp/`
+- **Eliminaciones peligrosas**: `rm -rf /`, `$*`
+- **Abuso de privilegios/permisos**: `chmod 4xxx/7xxx`, `setcap`, `systemctl (enable|start)`, `useradd`
+- **One-liners**: `python -c`, `perl -e`, `ruby -e`, `node -e`
 
-# Ahora usa tus comandos como siempre
-yay -S <paquete-aur>
-paru -S <paquete-aur>
-pamac build <paquete-aur>
- 
-```
+**Resultado:**
 
-Cómo funciona
-
-- Detecta los objetivos a instalar y verifica con `bin/aur-verify --verify-only` únicamente los que están en AUR (consulta RPC v5).
-- Si alguna verificación falla, aborta y no ejecuta el helper real.
-- Si todo pasa, delega al binario original con los mismos argumentos.
-- Respeta variables como `STRICT=1`, `FAST=1`, `VERBOSE=1`, `QUIET=1` que afectan a `bin/aur-verify`.
-- Para forzar ruta del binario real, define `AUR_GUARD_REAL_YAY=/usr/bin/yay` (análogamente para `PARU`, `PAMAC`, etc.).
-- Para saltarse el wrapper puntualmente, usa `AUR_GUARD_BYPASS=1`.
-
-Comportamiento por helper (transparente)
-
-- El wrapper no cambia el comportamiento del helper; sólo hace pre-checks y delega con los mismos argumentos.
-- pamac: se pre‑verifica únicamente con `pamac build` (AUR). `pamac install|upgrade` no se tocan.
-- yay/paru/pikaur/trizen: pre‑check y delegación normal (estos tools manejan repos y AUR).
-
-Flags de conveniencia (opcionales)
-
-- Puedes pasar flags del verificador junto a los helpers; el wrapper los usa para el pre-check y los elimina antes de delegar:
-  - `--strict` (equivalente a `STRICT=1`)
-  - `--fast` (equivalente a `FAST=1`)
-  - `--verbose` / `--quiet` (equivalente a `VERBOSE=1` / `QUIET=1`)
-  - `--metadata` (equivalente a `SHOW_METADATA=1`)
-  - `--verify-only` (ejecuta sólo el pre-check; no instala con el helper)
-
-Nota para desarrolladores: lista de helpers
-
-- Extiende `lib/guard/helpers.list` para añadir nuevos helpers o ajustar su tipo (`pacman` vs `pamac`).
-
-Notas
-
-- Puedes forzar la ruta del binario real con `AUR_GUARD_REAL_<HELPER>=/ruta/al/binario`.
-- Para saltarse el wrapper puntualmente: `AUR_GUARD_BYPASS=1`.
+- Con **parser JS**: si `redFlags>0` → `WARN` (o `FAIL` en `STRICT=1`).
+- Con **Bash**: igual, pero solo heurísticas por regex.
 
 ---
 
-## Requisitos
+### 2) Dominios y HTTPS en `source=()`
 
-- Arch Linux o derivado con acceso a AUR.
-- Herramientas: `git`, `curl`, `makepkg` (parte de `pacman`), y un ayudante AUR compatible: `yay` (por defecto).  
-  - Puedes cambiar el binario de yay con `YAY_BIN=/ruta/a/yay`.
+- **Enforzamiento de HTTPS**: marca cualquier fuente que no use HTTPS.
+- **Lista blanca de dominios** (por defecto, configurable con `ALLOWED_DOMAINS`):
+  `github.com | codeload.github.com | objects.githubusercontent.com | gitlab.com`
+
+**Resultado:**
+
+- No HTTPS → `WARN` (o `FAIL` en `STRICT=1`).
+- Fuera de la lista → `WARN` (o `FAIL` en `STRICT=1`).
+
+---
+
+### 3) Fijación de VCS en `git+…`
+
+Requiere `#commit=` o `#tag=` en las fuentes `git+…`. De lo contrario se marca como **no fijado**.
+
+**Resultado:**
+
+- Sin pin → `WARN` (o `FAIL` en `STRICT=1`).
+- Correctamente fijado → `PASS`.
+
+---
+
+### 4) Política de checksums
+
+- Detecta sumas débiles (`md5sums`, `sha1sums`) o **`SKIP`**.
+- Si faltan sumas fuertes (`sha256sums` / `sha512sums`), intenta corregir.
+- En modo normal (no `--fast` / `--verify-only`), trata de **regenerar automáticamente** `sha256sums` con `makepkg -g`.
+
+**Resultado:**
+
+- **`STRICT=1`**: cualquier suma débil/`SKIP`/falta de suma fuerte → `FAIL` (sin autocorrección).
+- **Normal**:
+  - `--fast` o `--verify-only` → `WARN` (salta regeneración).
+  - Completo: si reescribir a `sha256sums` funciona → `PASS`; de lo contrario `WARN`.
+
+---
+
+### 5) `makepkg --verifysource` (incluye PGP si existe)
+
+Ejecuta `makepkg --verifysource` **sin compilar** (descargas/PGP/checksums) solo en **modo completo**.
+
+**Resultado:**
+
+- **Completo (por defecto)**:
+  - Éxito → `PASS`.
+  - Falla → `WARN` (o `FAIL` en `STRICT=1`).
+- **`--fast`** → omitido.
+- **`--verify-only`** (sin `DEEP=1`) → omitido.
+
+> Si el `PKGBUILD` incluye archivos `.sig`, la verificación PGP ocurre dentro de `--verifysource`.
+> Si no, nada falla por firmas ausentes, aunque otros chequeos pueden advertir.
+
+---
+
+### 6) Resumen de funciones (`prepare()/build()/package()`)
+
+Si `SHOW_FUNCS=1`, imprime un **resumen textual** de los cuerpos de función (no los ejecuta) para dar visibilidad rápida antes de instalar.
+
+**Resultado:** Solo informativo (sin PASS/WARN/FAIL).
+
+---
+
+### 7) Señales del parser JS (si Node + `bin/pkgb-parse`)
+
+Integra 3 contadores de señales:
+
+- `unpinnedGit`, `nonHttps`, `redFlags`
+
+Aparecen en el reporte como `item_js_unpinned`, `item_js_https`, `item_js_redflags` con severidad **WARN** (subido a **FAIL** en `STRICT=1`).
+
+---
+
+## 🧩 Otros chequeos / metadatos
+
+- **Origen del PKGBUILD**: `plain` | `snapshot` | `git`, más si **plain** estaba disponible (puede ser `PASS/WARN/FAIL` según `STRICT`).
+- **Modo efectivo**: `full`, `fast`, `verify-only` (controla `--verifysource`).
+- **Integración con wrapper** (`scan`): aborta instalación del helper si la verificación da **FAIL** y, en actualizaciones (`yay -Syu` / `paru -Syu`), omite automáticamente los paquetes problemáticos usando `--ignore`.
+- **Corte temprano:** las revisiones estáticas corren antes de descargar fuentes; si fallan, se omiten pasos pesados (por ejemplo `makepkg --verifysource`).
+
+---
+
+## 🚀 Inicio rápido
+
+### Wrapper drop-in (transparente)
+
+Tras instalar, envuelve tu helper de AUR de manera transparente:
 
 ```bash
-# No requiere instalación; invoca directo con sh o bash
+yay -Syu <aur-package>
+paru -S <aur-package>
+pamac build <aur-package>
+```
+
+- Si la verificación falla en una instalación puntual, se bloquea al helper.
+- En actualizaciones completas (`yay -Syu`, `paru -Syu`, `pikaur -Syu`, etc.) escanea la cola AUR y añade las fallidas a `--ignore` para que el resto continúe.
+- Si todo pasa, tu helper sigue normalmente.
+- Para omitir una vez, puedes poner: `SCAN_BYPASS=1` (no recomendado).
+- Banderas como `--verify-only`, `--strict` o `--fast` solo se reconocen **cuando el nombre del helper apunta al wrapper**. `scripts/install-scanner.sh` ya crea los shims necesarios; para instalaciones manuales puedes crearlo tú mismo (`ln -sf /ruta/al/repo/bin/scan ~/.local/bin/yay`).
+- Para chequeos del parser sin descargas, ejecuta mediante el wrapper con `FAST=1 --verify-only` (o `FAST=1 VERIFY_ONLY=1`).
+- Los shims de helper detectan automáticamente las banderas del wrapper: si escribes `yay … --verify-only`, el shim entrega el control a `scan`; de lo contrario delega directo al helper real.
+- ¿No sabes en qué modo estás? Ejecuta `command -v yay` y luego `readlink -f "$(command -v yay)"`. Si ambos apuntan al wrapper (`…/scan`), puedes usar `yay -Syu pkg --verify-only`; si muestran `/usr/bin/yay`, llama explícitamente `scan yay -Syu --verify-only pkg` (o crea el shim).
+
+> **Nota:** pacman no instala paquetes AUR; se deja intacto.
+>
+> Toda la configuración de bajo nivel la maneja la app. Detalles de integración avanzada están en la documentación de desarrollo.
+
+### ⌨️ CLI directo (opcional para usuarios avanzados)
+
+También puedes llamar al verificador directamente para mayor control:
+
+```bash
+aur-scanner <paquete>
+aur-scanner --verify-only <paquete>
+aur-scanner --strict <paquete>
+aur-scanner --fast <paquete>
+aur-scanner https://github.com/OWNER/REPO
 ```
 
 ---
 
-## Opciones y variables
+## 🔧 Opciones principales
 
-**Flags**:
+Cada opción puede usarse **ya sea como bandera** o como **variable de entorno**:
 
-- `--verify-only` — Ejecuta verificaciones estáticas y sale sin instalar (**sin descargas**).
-- `--deep` — En verify-only, también ejecuta `makepkg --verifysource` (descarga fuentes y verifica checksums/PGP).
-- `--fast` — Verificaciones **sólo de metadatos** (omite `makepkg --verifysource`). ⚠️ En `STRICT=1` reduce garantías.
-- `--verbose` — Muestra todos los detalles para usuarios avanzados (incluye resúmenes de funciones, metadatos del repositorio y más contexto en incidencias).
-- `--quiet` — Logs mínimos (solo errores y el resumen final de verificación). Sobrescribe `--metadata`.
-- `--metadata` — Muestra metadatos del repositorio (`yay -Si`) incluso en verify-only (oculto por defecto para mantenerlo veloz).
-- `-h`/`--help` — Ayuda.
+| Modo              | Banderas           | Variables entorno      |
+| ----------------- | ------------------ | ---------------------- |
+| Verify only       | `--verify-only`    | `VERIFY_ONLY=1`        |
+| Fast check        | `--fast`           | `FAST=1`               |
+| Strict policies   | `--strict`         | `STRICT=1`             |
+| Verbose logging   | `--verbose`        | `VERBOSE=1`            |
+| Quiet logging     | `--quiet`          | `QUIET=1`              |
 
-**Variables de entorno**:
-
-- `STRICT=1` — Activa **modo estricto**:
-  - **Prohíbe** `sha1`, `SKIP` o ausencia de sumas fuertes.
-  - **Lista blanca de dominios** (por defecto): `github.com`, `codeload.github.com`, `objects.githubusercontent.com`, `gitlab.com`.
-  - Si hay archivos `.sig` en `source=()`, **debe** pasar `makepkg --verifysource` (PGP).
-  - Muestra un **resumen** de funciones `prepare()`, `build()`, `package()`.
-- `YAY_BIN=/ruta/yay` — Cambia el binario de yay.
-- `AUR_FORCE_IPV4=1` — Fuerza IPv4 en todas las solicitudes a AUR (útil si IPv6 es inestable o lento).
-
-Reporte e idioma:
-
-- El resumen final se imprime en el idioma de tu terminal (inglés por defecto; español si `LANG`/`LC_*` comienza con `es`).
-- Puedes forzar el idioma con `REPORT_LANG=es` o `REPORT_LANG=en`.
- - `SHOW_FUNCS=1` — Mostrar resúmenes de `prepare()/build()/package()`; implícito con `--verbose`.
-- `SHOW_METADATA=1` — Mostrar metadatos en verify-only; implícito con `--verbose` (o usa `--metadata`).
- - `QUIET=1` — Equivalente a `--quiet`.
+> Ejemplo: tanto `aur-scanner --strict pkg` como `STRICT=1 aur-scanner pkg` hacen lo mismo.
 
 ---
 
-## Modos de verificación y profundidad
+## 🧩 Escenarios de uso
 
-Ajusta qué tan profunda es la verificación y cuánta salida se muestra:
+Esta herramienta se adapta a distintas necesidades. Casos prácticos:
 
-- `--verify-only`: Por defecto solo checks estáticos (sin descargas ni instalación).  
-  - Añade `DEEP=1` para ejecutar también `makepkg --verifysource` (descarga fuentes y verifica checksums/PGP).  
-  - Útil para CI o cuando quieres verificar integridad sin instalar.
-- `--fast`: Solo metadatos; omite `makepkg --verifysource` y cualquier descarga.  
-  - Tiene precedencia sobre `DEEP=1` (si `FAST=1`, no habrá verificación profunda).
-- `STRICT=1`: Endurece políticas (solo HTTPS, dominios permitidos, sumas fuertes, pinning) y convierte algunos WARN en FAIL.  
-- `--verbose` / `--quiet`: Aumenta detalles (contexto completo, resúmenes de funciones) o minimiza logs (solo errores + resumen final).
-
-Cuándo usar cada uno
-
-- Triage rápido (sin descargas): `sh ./bin/aur-verify <paquete> --verify-only --fast`
-- Integridad sin instalar: `DEEP=1 sh ./bin/aur-verify <paquete> --verify-only`
-- Filtro estricto para sistemas sensibles: `STRICT=1 DEEP=1 sh ./bin/aur-verify <paquete> --verify-only`
-- Auditoría detallada: `STRICT=1 sh ./bin/aur-verify <paquete> --verify-only --verbose`
-- Mínimo ruido: `sh ./bin/aur-verify <paquete> --verify-only --quiet`
-
-Notas
-
-- La verificación profunda (`DEEP=1`) requiere red para bajar fuentes; se omite si se establece `--fast`.
-- En `--verify-only` no se intenta reescribir checksums (no se ejecuta `makepkg -g`).
-- La instalación depende del veredicto final; si es FAIL y no estás en verify‑only, se aborta la instalación.
-
----
-
-## CLI Node: pkgb-parse (opcional)
-
-El proyecto incluye un CLI modular en Node.js para parsear PKGBUILD con rapidez y aportar señales adicionales al reporte en Bash. Es opcional: si no hay Node, Bash usa heurísticas con grep/awk.
-
-- Punto de entrada: `bin/pkgb-parse`
- 
-
-Ejemplos:
+### ✅ Modo normal (por defecto)
 
 ```bash
-# Parsear desde archivo
-node bin/pkgb-parse --file ./PKGBUILD --summary
-
-# Parsear directo desde la URL plain de AUR
-node bin/pkgb-parse --url "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=zotero"
-
-# JSON para integraciones
-node bin/pkgb-parse --file ./PKGBUILD --json
+aur-scanner <aur-package>
 ```
+
+- Para instalaciones diarias de **paquetes AUR conocidos**.
+- Equilibrio entre seguridad y velocidad.
+- Corrige automáticamente sumas débiles, advierte pero no bloquea problemas menores.
+
+### 🛡️ Modo estricto
+
+```bash
+aur-scanner --strict <aur-package>
+```
+
+- Para **entornos sensibles a la seguridad** o **paquetes desconocidos**.
+- Solo HTTPS de dominios permitidos.
+- No se permiten sumas débiles/omitidas.
+- Requiere archivos `.sig` válidos.
+
+### ⚡ Modo rápido
+
+```bash
+aur-scanner --fast <aur-package>
+```
+
+- Para **vistazos rápidos** sin descargas.
+- Útil con bajo ancho de banda o al revisar paquetes.
+- Superficial — úsalo con precaución.
+
+### 🔍 Solo verificar
+
+```bash
+aur-scanner --verify-only <aur-package>
+```
+
+- Para **auditar paquetes sin instalarlos**.
+- Ideal en pipelines CI/CD.
+- Agrega `DEEP=1` para revisiones completas de fuentes + PGP.
+
+### Resumen de uso
+
+| Modo      | Seguridad | Velocidad  |          Descargas          |                Caso de uso                 |
+| --------- | --------- | ---------- | --------------------------- | ------------------------------------------ |
+| Normal    | Media     | Rápida     | Sí                          | Instalaciones diarias de AUR comunes       |
+| Estricto  | Alta      | Más lenta  | Sí                          | Paquetes desconocidos / sistemas sensibles |
+| Rápido    | Baja      | Muy rápida | No                          | Vista rápida, metadatos                    |
+| Verificar | Alta      | Variable   | No (def.) / Sí (con DEEP=1) | Solo auditoría, CI/CD                      |
+
+### 🔀 Ejemplos de flujo
+
+- **Paquete desconocido:** `STRICT=1 aur-scanner my-unknown-pkg`
+- **Actualización diaria (wrapper yay):** `yay -Syu` (omite automáticamente las actualizaciones AUR con fallos)
+- **Vista rápida navegando AUR:** `aur-scanner --fast --verify-only <package-name>`
+- **Auditoría en pipeline:** `DEEP=1 aur-scanner --verify-only custom-helper-git`
+
+---
+
+## 🧠 Anatomía del script (estado actual)
 
 <details>
-<summary><strong>Opciones del CLI (detalles)</strong></summary>
+<summary><strong>Flujo de alto nivel (bin/aur-verify)</strong></summary>
+```plaintext
+[Entrada: nombre de paquete AUR | URL AUR | URL GitHub]
+        │
+        ├─ Procesar flags/env:
+        │     --verify-only, --fast, --strict, --verbose, --quiet, --metadata
+        │
+        ▼
+   Resolver paquete AUR
+        │
+        ├─ Si es URL GitHub → derive_candidates_from_repo (README/título → kebab-case)
+        │        │
+        │        └─ AUR RPC (cache / en vivo) + búsqueda estricta (fallback: yay -Ss)
+        │
+        └─ Si es URL AUR → tomar slug final; si es token simple → normalizar & probar variantes
+                  (-git, -bin, -appimage; FAST prefiere “no -bin” primero)
+        │
+        ▼
+   Checkout de PKGBUILD
+        │
+        ├─ Intento 1: AUR plain (PKGBUILD directo; cachea .json del LLPR/RPC)
+        │
+        ├─ Si falla y no --fast:
+        │        ├─ Intento 2: snapshot .tar.gz
+        │        └─ Intento 3: git clone (fallback)
+        │
+        └─ (Verbose/Strict) también puede traer .SRCINFO
+        │
+        ▼
+   Reporte: fuente del PKGBUILD
+        ├─ plain | snapshot | git + “plain disponible/no disponible”
+        └─ (Verbose) resumen de prepare()/build()/package()
+        │
+        ▼
+   Señales JS (si Node + bin/pkgb-parse)
+        ├─ unpinnedGit / nonHttps / redFlags → export counters
+        └─ (Verbose) muestra resumen, fuentes compactas, líneas marcadas
+        │
+        ▼
+   Reglas de verificación (Bash + señales JS)
+        ├─ Pin SCV (git+… requiere #commit= o #tag=) → PASS/WARN/FAIL (STRICT)
+        ├─ Solo HTTPS + lista de dominios (ALLOWED_DOMAINS por defecto: GitHub/GitLab/…)
+        ├─ Checksums:
+        │     • Si md5/sha1 o SKIP:
+        │         - STRICT: FAIL
+        │         - --fast: WARN
+        │         - --verify-only: WARN
+        │         - Normal: regenerar sha256sums (makepkg -g) → PASS/WARN
+        ├─ Red flags (vía JS si disponible; fallback grep)
+        └─ makepkg --verifysource (modo depende):
+              • completo (def.) → ejecutar
+              • rápido / solo verificar → SKIP
+              • STRICT sube algunos WARN a FAIL
+        │
+        ▼
+   Resumen (i18n en/es): PASS/WARN/FAIL + “OK | OK (con advertencias) | FAIL”
+        │
+        ├─ --verify-only → salir con código según resultado
+        └─ (La instalación NO es automática aquí)
+```
+</details> 
 
-- `--file PATH`: Parsear PKGBUILD desde archivo local
-- `--url URL`: Descargar y parsear PKGBUILD desde URL
-- `--summary`: Resumen en una línea (nombre, versión, conteos)
-- `--json`: Salida JSON estructurada
-- `--signals`: Pares clave=valor para Bash
-- `--redflags-lines`: Banderas rojas como `linea<TAB>contenido`
-- `--sources-compact [--limit N]`: Lista compacta de fuentes, opcionalmente limitada
-
-Tip: Si pasas un enlace de AUR que no es el endpoint “plain”, el CLI sugerirá la forma correcta `.../plain/PKGBUILD?h=<pkg>` y mostrará “Fetching from AUR (respectfully)...”.
-
-</details>
-
----
-
-## Qué comprueba
-
-### 1) Banderas rojas en `PKGBUILD` (diagnóstico)
-
-Busca patrones peligrosos o poco confiables, por ejemplo:
-
-- **Descargas autoejecutadas**: `curl|wget ... (sh|bash)`
-- **Sockets TCP en shell**: `/dev/tcp`
-- **Ejecución dinámica**: `eval`, `$(...)`, `` `...` ``, `exec(`
-- **Decodificación/descifrado** en línea: `base64 -d`, `openssl enc -d`
-- **Privilegios/permiso sospechoso**: `chmod +s`, `setcap`, escritura sobre `/etc`
-- **Trampas en rutas**: uso indebido de `pkgdir` apuntando a `/etc`
-- **(STRICT)** one-liners con `python -c`, `perl -e`, `ruby -e`, `node -e`
-
-Diagnóstico en `--verbose` (cuando hay Node): imprime líneas marcadas por el parser JS. Nota: el runner actual no añade un ítem de banderas rojas al resumen; la regla atómica `rule_red_flags` existe y puede invocarse de forma independiente.
+> **SCV:** Sistema de Control de Versiones
+> **LLPR:** Llamada a Procedimiento Remoto (RPC)
 
 <details>
-<summary><strong>Severidad y patrones benignos comunes</strong></summary>
+<summary><strong>Integración con wrapper (bin/scan)</strong></summary>
 
-- En modo normal, las banderas rojas generan ADVERTENCIA; con `STRICT=1` pueden escalar a FALLA.
-- Un caso frecuente de bajo riesgo es usar `eval` para resolver una variable según la arquitectura, por ejemplo:
-
-  `python -m installer --destdir="$pkgdir" $(eval echo "\${_anki_whl_$CARCH}")`
-
-  Esto resuelve una variable como `_anki_whl_x86_64`. Se mantiene como ADVERTENCIA en modo normal; en modo estricto sigue siendo FALLA.
-
-- La verificación profunda (`DEEP=1`) no es necesaria para este caso; puede aumentar la confianza validando checksums/PGP vía `makepkg --verifysource`.
-
+```plaintext
+[Invocación: scan <helper> <args>]
+        │
+        ├─ Detecta helper real (yay/paru/pikaur/trizen/pamac)
+        ├─ Extrae paquetes candidatos (pacman -S/-U o pamac build/install/upgrade)
+        ├─ Ejecuta: bin/aur-verify --verify-only -- <candidates>
+        │       └─ Si verificación FALLA → aborta (exit 2)
+        │
+        └─ Si verificación OK (o no hay AUR) → delega al helper real (exec)
+```
 </details>
 
-### 2) Dominios permitidos para `source=()`
+### Notas rápidas (comportamiento actual)
 
-- Acepta (por defecto): `github.com`, `codeload.github.com`, `objects.githubusercontent.com`, `gitlab.com`.
-- En `STRICT=1`, **rechaza** cualquier otro dominio.
-
-### 3) Políticas de checksums
-
-- **Modo normal**: si hay `sha1sums` o `SKIP`, el script **descarga las fuentes**, calcula `sha256` y **reescribe** a `sha256sums` → vuelve a verificar.
-- **STRICT=1**: **prohíbe** sumas débiles; no aplica autocorrección → **falla**.
-
-### 4) Verificación PGP (si hay `.sig`)
-
-- Si el `PKGBUILD` declara firmas `.sig`, **debe** pasar `makepkg --verifysource`.
-- Si **no** hay `.sig`, se advierte (no se bloquea) — en `STRICT=1` el aviso es explícito.
-
-### 5) `makepkg --verifysource`
-
-- Se ejecuta **sin construir** (sólo integra/PGP).  
-- Se omite cuando usas `--verify-only` (verificación estática), salvo que definas `DEEP=1`.  
-- En `--fast`, se omite deliberadamente (revisión superficial con metadatos de `yay -Si`).
-
-### 6) Resumen de `prepare()/build()/package()` (STRICT)
-
-- Muestra las **primeras líneas** de cada función para visibilidad rápida antes de instalar.
-
-### 7) Fijación de VCS (fuentes git+)
-
-- Advierte cuando una fuente `git+https://…` no incluye `#commit=` o `#tag=`. En `STRICT=1`, esto hace que falle. Refuerza la reproducibilidad en paquetes VCS.
-
-### 8) Resumen final (amigable para no expertos)
-
-- Imprime un resumen claro (OK/ADVERTENCIA/FALLA/OMITIDO) con veredicto final y acción tomada.
-- Localizado a español/inglés según la terminal.
-
-<details>
-<summary><strong>Campos del reporte y significado</strong></summary>
-
-- Origen del PKGBUILD: de dónde se obtuvo (AUR snapshot/plain vs clon git de respaldo)
-- Fijación de VCS: si las fuentes `git+…` están fijadas a `#commit=` o `#tag=`
-- URLs de origen: valida que todas las fuentes usen HTTPS
-- Dominios permitidos: valida contra una lista blanca
-- Checksums: aplica y/o corrige política de sumas (sha256)
-- Banderas rojas (diagnóstico): patrones sospechosos (solo VERBOSE/JS)
-- makepkg --verifysource: verificación de integridad/PGP (omitido en verify‑only salvo `DEEP=1`)
-
-Estados:
-
-- OK: correcto
-- ADVERTENCIA: potencial riesgo o práctica mejorable (no bloquea)
-- FALLA: problema bloqueante; se aborta la instalación
-- OMITIDO: omitido a propósito por el modo (verify‑only/fast)
-
-Idioma:
-
-- Auto: usa `LANG`/`LC_*` (español si comienza con `es`)
-- Forzado: `REPORT_LANG=es` o `REPORT_LANG=en`
-
-</details>
-
-<details>
-<summary><strong>Autodetección y obtención (Mermaid)</strong></summary>
-
-```mermaid
-%%{init: {"theme": "forest", "handDrawn": true}}%%
-flowchart TD
-    A[Entrada: URL AUR / URL GitHub / NombrePaquete]
-    B{¿Tipo?}
-    A --> B
-    B -->|URL AUR| C[Extraer <nombre> de la URL]
-    C --> H[Nombre de paquete]
-    B -->|URL GitHub| D[Derivar candidatos desde README/título]
-    D --> E[Validación estricta en AUR vía lib/search.sh]
-    E --> H
-    B -->|NombrePaquete| F{¿Coincidencia exacta en AUR RPC?}
-    F -->|Sí| H
-    F -->|No| G[Búsqueda estricta por nombre con yay -Ss <solo AUR>]
-    G --> H
-
-    H --> I{Obtener PKGBUILD}
-    I -->|Plain OK| J[Snapshot/plain de AUR <sin git>]
-    I -->|Plain falló| K[Clonado git superficial desde AUR]
-    J --> L[Checks estáticos <reglas>]
-    K --> L
-
-    classDef ok fill:#e0ffe0,stroke:#9acd32,stroke-width:1px;
-    classDef alt fill:#e6f0ff,stroke:#4f81bd,stroke-width:1px;
-    classDef warn fill:#fff7cc,stroke:#ffc107,stroke-width:1px;
-    class J ok;
-    class K alt;
-    class L warn;
-```
-
-</details>
+- **Descarga**: siempre prefiere **AUR plain**; si falla y no `--fast`, cae a **snapshot** y luego **git clone**.
+- **Resolución**: usa **AUR RPC v5** con cache ligero en `/tmp`, coincidencia estricta de nombres y, como último recurso, `yay -Ss`. Para GitHub, deriva candidatos de README/título y normaliza con *kebab-case* + variantes (`-git/-bin/-appimage`).
+- **Señales JS opcionales**: si existen Node y `bin/pkgb-parse`, agrega señales (unpinnedGit/nonHttps/redFlags) y muestra detalles en `--verbose`.
+- **Checksums**: si encuentra **md5/sha1/SKIP**, en modo normal intenta **reemplazar automáticamente** por `sha256sums` (salvo en `--verify-only` o `--fast`); `--strict` los trata como **FAIL**.
+- **HTTPS + dominios**: requiere HTTPS y valida contra `ALLOWED_DOMAINS` (configurable por env).
+- **Pin de VCS**: requiere `#commit=` o `#tag=` en fuentes `git+…` (WARN/FAIL según `--strict`).
+- **makepkg --verifysource**: corre solo en **modo completo**; omitido en `--fast` o `--verify-only`.
+- **Reportes**: internacionalizado (en/es) con banners “BEGIN/END”, totales PASS/WARN/FAIL y acción sugerida.
 
 ---
 
-## 🧩 Cómo decide instalar
+## 🧪 Qué verifica (resumen)
 
-- **Entrada = nombre de paquete AUR**  
+- **Pin de SCV**: `git+https://…` debe usar `#commit=` o `#tag=` (estricto = requerido).
+- **URLs de fuente**: exige HTTPS y valida contra lista permitida (estricto).
+- **Checksums**: preferir `sha256sums`; débiles/`SKIP` son rechazados o reescritos (no estricto).
+- **PGP**: si se declara `.sig`, `makepkg --verifysource` debe pasar.
+- **Banderas rojas**: resalta patrones riesgosos (diagnóstico).
 
-  Obtiene `PKGBUILD` desde snapshot/plain de AUR (sin clonar), corre las verificaciones y, si todo pasa, instala con:
-
-  ```bash
-  yay -S --noconfirm <pkg>
-  ```
-
-- **Entrada = URL de GitHub (`https://github.com/OWNER/REPO`)**  
-
-  Intenta mapear a un envoltorio AUR típico:
-  - `owner-repo`
-  - `owner-repo-bin`
-  - `owner-repo-git`
-  - y variantes detectadas
-
-  Sólo acepta si el `PKGBUILD` realmente **apunta a ese repo** (comprobación del `source`/`url`).
-
-- **`--fast`**  
-
-  Afecta la profundidad de verificación (omite `makepkg --verifysource`) y sesga la resolución de nombre para preferir candidatos `-bin`/`-appimage` cuando aplique. No cambia el comando de instalación más allá de eso.
+> Ver reglas completas y tabla de severidad en la [documentación de desarrollo](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md).
 
 ---
 
-## Detección de entrada (autodetección)
+## 🛡️ Notas de seguridad
 
-- **URL de paquete AUR** (`https://aur.archlinux.org/packages/<nombre>`): extrae `<nombre>` y obtiene desde snapshot/plain de AUR.
-- **URL de GitHub**: deriva posibles envoltorios AUR (título del repo + nombre del repo, además de `-git`/`-bin`/`-appimage`) y valida contra AUR.
-- **Nombre pelado**: consulta primero el AUR RPC v5 oficial para coincidencia exacta; si no existe, recurre a una búsqueda estricta por nombre en `yay -Ss` limitada a resultados de AUR.
-
-Este enfoque minimiza la confianza en heurísticas locales y usa endpoints oficiales de AUR siempre que sea posible.
-
-## Ejemplos
-
-Verificar e instalar un cursor desde AUR (si existe):
-
-```bash
-sh ./bin/aur-verify oreo-nord-cursors-git
-```
-
-Sólo verificar sin instalar:
-
-```bash
-sh ./bin/aur-verify --verify-only oreo-nord-cursors-git
-```
-
-Verificar un envoltorio AUR partiendo de GitHub:
-
-```bash
-sh ./bin/aur-verify https://github.com/OWNER/REPO
-```
-
-Forzar modo estricto:
-
-```bash
-STRICT=1 sh ./bin/aur-verify <paquete>
-```
-
-Verificación superficial (sin descargas de `makepkg`):
-
-```bash
-FAST=1 sh ./bin/aur-verify <paquete>
-```
+- El verificador **no compila** paquetes; revisiones profundas dependen de `makepkg --verifysource`.
+- `--fast` es **superficial**; para sistemas sensibles usar estricto+profundo.
+- Lista blanca y reglas de banderas rojas son personalizables.
 
 ---
 
-## Arquitectura
+## ❓ Solución de problemas
 
-La documentación para desarrolladores está en `../../README.dev.es.md`. Consulta ese archivo para estructura de código, módulos, detalles internos y diagramas.
+- **“Package may not exist”** → confirma el nombre en AUR.
+- **“sha256 verification failed”** → el upstream cambió; no instales hasta entender por qué.
+- **“Plain PKGBUILD unavailable while FAST=1”** → reejecuta sin `--fast`.
 
----
-## Notas de seguridad
-
-- Este script **no construye** el paquete durante la verificación (usa `makepkg --verifysource`).  
-- **No** elude las políticas de AUR: simplemente automatiza controles habituales (y añade reglas más estrictas si lo pides).
-- `--fast` está pensado para **revisión superficial**; úsalo sólo si confías en el paquete/maintainer.
-- La lista blanca de dominios y las banderas rojas son **opinadas**; puedes ajustarlas en el script si lo necesitas.
+Más escenarios y logs: ver docs de desarrollo.
 
 ---
 
-## Solución de problemas
+## 🤝 Contribuciones
 
-- **“AUR clone failed (package may not exist)”**  
-
-  Revisa el nombre del paquete o si realmente existe en AUR.
-- **“sha256 verification failed after regeneration”**  
-
-  El upstream cambió o hay un vector de ataque; no instales hasta entender la causa.
-- **“source domain not allowed” (STRICT)**  
-
-  Añade el dominio a la lista blanca en el script o instala en modo normal (bajo tu criterio).
-- **“Plain PKGBUILD unavailable for '<pkg>' while FAST=1”**  
-  
-  El modo FAST deshabilita los fallbacks de snapshot/git. Ejecuta sin `--fast` para permitir snapshot/git, o prueba una variante `-bin`/`-appimage`.
-\- **“PKGBUILD not found at '<path>/PKGBUILD' (mode=..., pkg=...)”**  
-  Ejecuta sin `--fast` para permitir el fallback a snapshot/git. Si aún falla, abre un issue incluyendo la ruta mostrada.
+Se aceptan contribuciones — código, docs, tests y propuestas de reglas.
+Buenas primeras tareas: mejoras de documentación, mensajes de error más claros, tests adicionales.
+Ver docs de desarrollo para arquitectura, reglas y entorno de pruebas.
 
 ---
 
-## Comandos de ejemplo (copiar/pegar)
+## ☕ Apoya el proyecto
 
-```bash
-# Verificar e instalar (normal)
-sh ./bin/aur-verify <paquete>
+Si esta herramienta te ahorra tiempo o hace tu flujo en Arch más seguro, considera apoyar:
 
-# Verificar solamente
-sh ./bin/aur-verify --verify-only <paquete>
+[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20the%20project-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/luigid5555)
 
-# Modo estricto (dominios whitelisted, sin sumas débiles, PGP cuando haya .sig)
-STRICT=1 sh ./bin/aur-verify <paquete>
-
-# Verificación rápida basada en metadatos
-FAST=1 sh ./bin/aur-verify <paquete>
-
-# Desde GitHub: localizar el envoltorio AUR y verificar/instalar
-sh ./bin/aur-verify https://github.com/OWNER/REPO
-```
+Tu apoyo mantiene las reglas al día, mejora docs y hace sostenibles las pruebas. ¡Muchas Gracias!
 
 ---
 
 ## Licencia
 
-Este proyecto está licenciado bajo la Licencia MIT. Ver [LICENSE](../../LICENSE).
-
-
----
+Este proyecto está bajo la Licencia MIT. Ver [LICENSE](../../LICENSE) para más detalles.
 
 ### Créditos
 
-Mantenido por las personas colaboradoras del proyecto. Consulta [AUTHORS](AUTHORS) para créditos y agradecimientos.
-
----
+Mantenido por los contribuidores del proyecto. Ver [AUTHORS](../../AUTHORS) para créditos y agradecimientos.
