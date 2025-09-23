@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
+# Copyright (c) 2025 José Luis López López Prieto
 # Author GitHub: https://github.com/LuigiD5555
+
+set -euo pipefail
+IFS=$'\n\t'
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LIB_DIR="$SCRIPT_DIR/../lib"
@@ -9,7 +12,11 @@ LIB_DIR="$SCRIPT_DIR/../lib"
 # Load libs
 # Prefer sourcing submodules directly (keeping facades for compatibility)
 source "$LIB_DIR/core/shell_safety.sh"
-source "$LIB_DIR/utils/logging.sh"
+
+LOG_TAG="aur-verify"
+: "${DEBUG:=0}"
+
+source "$LIB_DIR/guard/logging.sh"
 source "$LIB_DIR/aur/fetch_plain_and_snapshot.sh"
 # Optional helper metadata (supports showing repo info in verify-only)
 if [ -f "$LIB_DIR/helpers/yay_query.sh" ]; then
