@@ -11,14 +11,14 @@ link_one() {
 }
 
 link_launcher_and_helpers() {
-  # $1 = GUARD_RESOLVED, $2 = DEST_BIN, $3.. = helpers
-  local guard="$1" dest_bin="$2"; shift 2
+  # $1 = GUARD_RESOLVED, $2 = SHIM_RESOLVED, $3 = DEST_BIN, $4.. = helpers
+  local guard="$1" shim="$2" dest_bin="$3"; shift 3
   local helpers=("$@")
 
-  link_one "$guard" "$dest_bin/aur-guard"
+  link_one "$guard" "$dest_bin/scan"
 
   local h
   for h in "${helpers[@]}"; do
-    link_one "$guard" "$dest_bin/$h"
+    link_one "$shim" "$dest_bin/$h"
   done
 }

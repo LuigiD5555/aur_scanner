@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 José Luis López López Prieto
+# Author GitHub: https://github.com/LuigiD5555
+# scan — run AUR verification before yay/paru/pikaur/trizen/pamac
+
+set -euo pipefail
+IFS=$'\n\t'
+
+# --- Resolve self path robustly (follows symlinks) ---
+__scan_resolve_self() {
+  # Start from this script (can be a symlink)
+  local src="${BASH_SOURCE[0]}"
+  # Walk symlink chain
+  while [ -L "$src" ]; do
+    local dir link
+    dir="$(cd -P -- "$(dirname -- "$src")" && pwd)"
+    link="$(readlink -- "$src")"
+    [[ "$link" != /* ]] && src="$dir/$link" || src="$link"
+  done
+  # Return absolute canonical path to the real file
+  printf '%s\n' "$(cd -P -- "$(dirname -- "$src")" && pwd)/$(basename -- "$src")"
+}
+
+SELF_PATH="$(__scan_resolve_self)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "$SELF_PATH")" && pwd)"
+ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+# Optional override via env (useful for custom installs)
+: "${SCAN_LIBDIR:=$ROOT_DIR/lib}"
+
+# --- Tiny helper to source with a clear error if missing ---
+__scan_source() {
+  local file="$1"
+  if [ -f "$file" ]; then
+    # shellcheck disable=SC1090
+    . "$file"
+  else
+    printf '[scan][error] Missing module: %s\n' "$file" >&2
+    exit 1
+  fi
+}
+
+# --- Source modules (now that ROOT_DIR is correct even in symlink mode) ---
+# Canonical logger shared by scan & aur-verify
+LOG_TAG="scan"
+: "${DEBUG:=0}"
+__scan_source "$SCAN_LIBDIR/guard/logging.sh"
+
+__scan_source "$SCAN_LIBDIR/guard/paths.sh"
+__scan_source "$SCAN_LIBDIR/guard/flags.sh"
+__scan_source "$SCAN_LIBDIR/guard/helpers_db.sh"
+__scan_source "$SCAN_LIBDIR/guard/runtime.sh"
+__scan_source "$SCAN_LIBDIR/guard/candidates.sh"
+__scan_source "$SCAN_LIBDIR/guard/upgrades.sh"
+__scan_source "$SCAN_LIBDIR/guard/verify.sh"
+
+# ---------- Resolve paths ----------
+guard_init_paths
+
+# ---------- Keep original args & consume wrapper flags ----------
+orig_args=("$@")
+guard_consume_wrapper_flags "${orig_args[@]}"
+guard_export_if_set VERIFY_ONLY DEEP FAST STRICT VERBOSE QUIET SHOW_METADATA SHOW_FUNCS REPORT_LANG YAY_BIN AUR_FORCE_IPV4 DEBUG
+set -- "${FILTERED_ARGS[@]:-${orig_args[@]}}"
+
+# ---------- Load helper kinds WITHOUT altering "$@" ----------
+guard_load_helpers_map "$HELPERS_LIST"
+
+# ---------- Determine target helper and arguments ----------
+invoked_as="$(basename -- "$0")"
+target_tool=""
+case "$invoked_as" in
+  scan)
+    [[ $# -ge 1 ]] || die "Usage: scan <helper> [args...]"
+    target_tool="$1"; shift 1
+    ;;
+  *)
+    target_tool="$invoked_as"  # symlink mode: yay/paru/pamac/etc.
+    ;;
+esac
+
+# ---------- Find the real helper binary (avoid recursion) ----------
+real_cmd="$(guard_find_real_cmd "$target_tool")" || die "Cannot locate real helper for '$target_tool'."
+log_debug "real_cmd=$real_cmd"
+
+# ---------- Verification wrapper with re-entry guard ----------
+if [ "${SCAN_VERIFIED:-0}" != "1" ]; then
+  export SCAN_VERIFIED=1
+  log_debug "starting one-shot verification (scan)"
+  if ! guard_verify_aur_targets "$real_cmd" "$@"; then
+    log_warn "verification failed — aborting"
+    exit 2
+  fi
+else
+  log_debug "skip verification (already verified in this process)"
+fi
+
+# >>> Nuevo: si solo querías verificar, no delegues al helper real
+if [[ "${VERIFY_ONLY:-0}" = "1" ]]; then
+  log_info "VERIFY_ONLY=1 -> Not delegating to '$real_cmd'. Exiting cleanly."
+  exit 0
+fi
+
+# ---------- Delegate to real helper ----------
+log_debug "verification passed (or skipped) — delegating to real helper"
+
+if [[ -n "${SCAN_IGNORE_PKGS:-}" ]]; then
+  log_warn "Skipping problematic AUR upgrades: ${SCAN_IGNORE_PKGS//,/ }"
+  set -- "$@" --ignore "$SCAN_IGNORE_PKGS"
+fi
+
+exec "$real_cmd" "$@"

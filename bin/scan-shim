@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+# scan-shim — lightweight front that conditionally routes to the scan wrapper
+
+set -euo pipefail
+IFS=$'\n\t'
+
+helper_name="$(basename -- "$0")"
+
+# Always route to wrapper when invoked directly as 'scan-shim'
+if [[ "$helper_name" == "scan-shim" ]]; then
+  helper_name="${1:-}"
+  if [[ -z "$helper_name" ]]; then
+    printf '[scan-shim][error] Usage: scan-shim <helper> [args...]\n' >&2
+    exit 1
+  fi
+  shift
+fi
+
+self_path=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+wrapper_path="$self_path/scan"
+if [[ ! -x "$wrapper_path" && -x "$self_path/scan.sh" ]]; then
+  wrapper_path="$self_path/scan.sh"
+fi
+[[ -x "$wrapper_path" ]] || {
+  printf '[scan-shim][error] Wrapper not found at %s/{scan,scan.sh}\n' "$self_path" >&2
+  exit 1
+}
+
+upper_helper="$(printf '%s' "$helper_name" | tr '[:lower:]' '[:upper:]')"
+override_var="SCAN_REAL_${upper_helper}"
+override_path="${!override_var:-}"
+
+should_use_wrapper=0
+for arg in "$@"; do
+  case "$arg" in
+    --verify-only|--deep|--fast|--strict|--verbose|--quiet|--metadata|\
+    --ipv4|--force-ipv4|--scan-debug|--scan-help|--scan-list-helpers|\
+    --list-helpers|--help)
+      should_use_wrapper=1
+      break
+      ;;
+    --report-lang|--yay-bin|--helper-bin)
+      should_use_wrapper=1
+      break
+      ;;
+    --report-lang=*|--yay-bin=*|--helper-bin=*)
+      should_use_wrapper=1
+      break
+      ;;
+  esac
+done
+
+if [[ "$should_use_wrapper" = "1" || "$helper_name" == "scan" ]]; then
+  exec "$wrapper_path" "$helper_name" "$@"
+fi
+
+if [[ -n "$override_path" && -x "$override_path" ]]; then
+  exec "$override_path" "$@"
+fi
+
+resolve_real_helper() {
+  local name="$1"
+  local shim_dir="$self_path"
+  local filtered_paths=()
+  IFS=':' read -r -a path_parts <<< "${PATH:-}"
+  for part in "${path_parts[@]}"; do
+    [[ -z "$part" ]] && continue
+    [[ "$part" == "$shim_dir" ]] && continue
+    filtered_paths+=("$part")
+  done
+  local filtered="${filtered_paths[*]:-}"
+  filtered="${filtered// /:}"
+
+  local candidate=""
+  if [[ -n "$filtered" ]]; then
+    candidate=$(PATH="$filtered" command -v -- "$name" 2>/dev/null || true)
+  fi
+  if [[ -n "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  for candidate in "/usr/bin/$name" "/bin/$name" "/usr/local/bin/$name"; do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+real_helper=$(resolve_real_helper "$helper_name") || {
+  printf '[scan-shim][error] Cannot locate real helper for %s\n' "$helper_name" >&2
+  exit 1
+}
+
+exec "$real_helper" "$@"

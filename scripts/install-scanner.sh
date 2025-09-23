@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
 # Author GitHub: https://github.com/LuigiD5555
-# install-aur-guard.sh — Orchestrates staging + symlinks, sourcing small modules.
+# install-scanner.sh — Orchestrates staging + symlinks, sourcing small modules.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -34,11 +34,11 @@ print_banner
 
 # ---------- Prefixes ----------
 if [[ "$mode" == "user" ]]; then
-  PREFIX_LIB="$HOME/.local/lib/aur-guard"
+  PREFIX_LIB="$HOME/.local/lib/scan"
   DEST_BIN="$HOME/.local/bin"
 else
   [[ "$EUID" -eq 0 ]] || die "Use --system as root."
-  PREFIX_LIB="/usr/local/lib/aur-guard"
+  PREFIX_LIB="/usr/local/lib/scan"
   DEST_BIN="/usr/local/bin"
 fi
 
@@ -54,13 +54,16 @@ stage_runtime "$REPO_ROOT" "$PREFIX_LIB"
 
 # Resolve wrapper path
 GUARD_RESOLVED="$PREFIX_LIB/bin/$GUARD_BASENAME"
-if [[ ! -x "$GUARD_RESOLVED" && -x "$PREFIX_LIB/bin/aur-guard.sh" ]]; then
-  GUARD_RESOLVED="$PREFIX_LIB/bin/aur-guard.sh"
+if [[ ! -x "$GUARD_RESOLVED" && -x "$PREFIX_LIB/bin/scan.sh" ]]; then
+  GUARD_RESOLVED="$PREFIX_LIB/bin/scan.sh"
 fi
-[[ -x "$GUARD_RESOLVED" ]] || die "Wrapper not found/executable at $PREFIX_LIB/bin/{aur-guard,aur-guard.sh}"
+[[ -x "$GUARD_RESOLVED" ]] || die "Wrapper not found/executable at $PREFIX_LIB/bin/{scan,scan.sh}"
+
+SHIM_RESOLVED="$PREFIX_LIB/bin/scan-shim"
+[[ -x "$SHIM_RESOLVED" ]] || die "Wrapper shim not found/executable at $PREFIX_LIB/bin/scan-shim"
 
 # Symlinks (launcher + helpers)
-link_launcher_and_helpers "$GUARD_RESOLVED" "$DEST_BIN" "${HELPERS[@]}"
+link_launcher_and_helpers "$GUARD_RESOLVED" "$SHIM_RESOLVED" "$DEST_BIN" "${HELPERS[@]}"
 
 # PATH for user mode
 if [[ "$mode" == "user" ]]; then

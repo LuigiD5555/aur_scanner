@@ -6,21 +6,21 @@
 
 usage() {
   cat <<'EOF'
-Usage: scripts/install-aur-guard.sh [--user|--system]
+Usage: scripts/install-scanner.sh [--user|--system]
 
 Options:
-  --user          Install to ~/.local/bin and stage runtime under ~/.local/lib/aur-guard (default)
-  --system        Install to /usr/local/bin and stage runtime under /usr/local/lib/aur-guard (requires root)
+  --user          Install to ~/.local/bin and stage runtime under ~/.local/lib/scan (default)
+  --system        Install to /usr/local/bin and stage runtime under /usr/local/lib/scan (requires root)
 
 This will:
   - Copy runtime files (bin/*, lib/**) to an executable prefix (handles NTFS/noexec).
   - Set +x on files with shebang (#!), 0644 otherwise.
-  - Create launcher symlink "aur-guard" and helper symlinks (yay/paru/pikaur/trizen/pamac) pointing to the staged aur-guard.
+  - Create launcher symlink "scan" and helper symlinks (yay/paru/pikaur/trizen/pamac) pointing to the staged wrapper.
   - Ensure ~/.local/bin is at the front of PATH (zsh/bash).
   - Ensure Node.js is available (>= 16). If missing/outdated, tries to install it.
 
 Notes:
-  - The wrapper binary in this repo is "bin/aur-guard" (without .sh). If your repo uses a different filename,
+  - The wrapper binary in this repo is "bin/scan" (without .sh). If your repo uses a different filename,
     adjust GUARD_BASENAME in lib/install/env.sh
 EOF
 }
@@ -46,9 +46,9 @@ ASCII
   echo
 }
 
-log()  { printf '[install-aur-guard] %s\n' "$*"; }
-warn() { printf '[install-aur-guard][warn] %s\n' "$*" >&2; }
-die()  { printf '[install-aur-guard][error] %s\n' "$*" >&2; exit 1; }
+log()  { printf '[install-scanner] %s\n' "$*"; }
+warn() { printf '[install-scanner][warn] %s\n' "$*" >&2; }
+die()  { printf '[install-scanner][error] %s\n' "$*" >&2; exit 1; }
 
 detect_shell() {
   if [[ -n "${ZSH_VERSION-}" ]] || [[ "${SHELL-}" == *"zsh" ]]; then

@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
 # Author GitHub: https://github.com/LuigiD5555
-# uninstall-aur-guard.sh — Full cleanup by default: remove helper symlinks, purge staged runtime, and clean PATH.
+# uninstall-scanner.sh — Full cleanup by default: remove helper symlinks, purge staged runtime, and clean PATH.
 
 set -euo pipefail
 IFS=$'\n\t'
 
 usage() {
   cat <<'EOF'
-Usage: scripts/uninstall-aur-guard.sh [--user|--system] [--no-purge] [--no-path] [--dry-run]
+Usage: scripts/uninstall-scanner.sh [--user|--system] [--no-purge] [--no-path] [--dry-run]
 
 Defaults:
   - Removes helper symlinks (yay/paru/pikaur/trizen/pamac).
@@ -24,7 +24,7 @@ Options:
   --dry-run     Print actions without performing changes.
 
 Notes:
-  - Only removes helper symlinks if they point to the staged aur-guard (safe).
+  - Only removes helper symlinks if they point to the staged scan wrapper (safe).
   - Leaves unrelated executables intact.
 EOF
 }
@@ -62,10 +62,10 @@ ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
 
 if [ "$mode" = "user" ]; then
   dest="$HOME/.local/bin"
-  prefix_lib="$HOME/.local/lib/aur-guard"
+  prefix_lib="$HOME/.local/lib/scan"
 else
   dest="/usr/local/bin"
-  prefix_lib="/usr/local/lib/aur-guard"
+  prefix_lib="/usr/local/lib/scan"
   if [ ! -w "$dest" ] && [ "$dry_run" = "0" ]; then
     log "$dest requires elevated permissions. Try: sudo \"$0\" --system"
     exit 1
@@ -77,10 +77,14 @@ helpers=(yay paru pikaur trizen pamac)
 # Valid symlink targets we consider ours
 valid_targets=()
 # Staged target (preferred)
-valid_targets+=("$prefix_lib/bin/aur-guard")
+valid_targets+=("$prefix_lib/bin/scan")
+valid_targets+=("$prefix_lib/bin/scan-shim")
 # Legacy direct-repo target (in case older installs linked to repo files)
-if [ -x "$ROOT_DIR/bin/aur-guard" ]; then
-  valid_targets+=("$ROOT_DIR/bin/aur-guard")
+if [ -x "$ROOT_DIR/bin/scan" ]; then
+  valid_targets+=("$ROOT_DIR/bin/scan")
+fi
+if [ -x "$ROOT_DIR/bin/scan-shim" ]; then
+  valid_targets+=("$ROOT_DIR/bin/scan-shim")
 fi
 
 # --- Remove helper symlinks (only if they point to our targets) ---
@@ -106,7 +110,7 @@ else
     fi
   done
   if [ "$found" -eq 0 ]; then
-    log "No aur-guard symlinks found in $dest"
+    log "No scan symlinks found in $dest"
   fi
 fi
 

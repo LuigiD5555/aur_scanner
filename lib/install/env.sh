@@ -4,8 +4,8 @@
 # shellcheck shell=bash
 # Env defaults and constants for installer
 
-# Wrapper basename in repo (adjust if your file is 'aur-guard.sh')
-: "${GUARD_BASENAME:=aur-guard}"
+# Wrapper basename in repo (adjust if your file is 'scan.sh')
+: "${GUARD_BASENAME:=scan}"
 
 # Helpers we want to optionally intercept
 HELPERS=(yay paru pikaur trizen pamac)
