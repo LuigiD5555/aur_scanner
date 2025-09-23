@@ -420,6 +420,16 @@ sequenceDiagram
 
 ---
 
+## Empaquetado para AUR (beta)
+
+- Existe una plantilla lista en `packaging/aur-scanner-git/` (PKGBUILD + .install) para publicar el wrapper como paquete `aur-scanner-git`.
+- El paquete instala el runtime en `/usr/lib/aur-scanner` y expone `scan`; luego el usuario debe ejecutar `install-scanner.sh` para enlazar los helpers.
+- `pkgver()` usa `git describe`, así que recuerda regenerar `.SRCINFO` con `makepkg --printsrcinfo` antes de subir cambios a AUR.
+- El script `.install` muestra al usuario cómo ejecutar `sudo /usr/lib/aur-scanner/scripts/install-scanner.sh --system` tras instalar.
+- Mantén la etiqueta **beta** en `pkgdesc` mientras la CLI sea inestable.
+
+---
+
 ## Profundidad de verificación y precedencia
 
 - `--verify-only`: solo chequeos estáticos (sin instalar). Con `DEEP=1` también ejecuta `makepkg --verifysource`.

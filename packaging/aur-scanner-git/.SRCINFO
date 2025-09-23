@@ -1,0 +1,24 @@
+pkgbase = aur-scanner-git
+	pkgdesc = Beta wrapper that validates AUR PKGBUILDs before delegating to yay/paru/pikaur
+	pkgver = 0.1.0.r0.g0000000
+	pkgrel = 1
+	url = https://github.com/LuigiD5555/aur_verification
+	arch = any
+	license = MIT
+	depends = bash
+	depends = git
+	depends = curl
+	depends = tar
+	depends = pacman
+	depends = sed
+	depends = grep
+	depends = awk
+	depends = coreutils
+	optdepends = nodejs>=18: enable JS parser assistance
+	provides = aur-scanner
+	conflicts = aur-scanner
+	source = git+https://github.com/LuigiD5555/aur_verification
+	sha256sums = SKIP
+	install = aur-scanner.install
+
+pkgname = aur-scanner-git
