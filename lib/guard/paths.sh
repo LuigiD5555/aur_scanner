@@ -17,8 +17,8 @@ _guard_resolve_self() {
 }
 
 _guard_set_constants() {
-  HELPERS_LIST="$ROOT_DIR/lib/guard/helpers.list"
-  AUR_VERIFY_BIN="$ROOT_DIR/bin/aur-verify"
+  : "${HELPERS_LIST:=$ROOT_DIR/lib/guard/helpers.list}"
+  : "${AUR_VERIFY_BIN:=$ROOT_DIR/bin/aur-verify}"
 }
 
 # Public init

@@ -1,0 +1,8 @@
+pkgname=append-fixture
+pkgver=1.0
+pkgrel=1
+arch=('any')
+source=('https://example.com/a.tar.gz')
+source+=("git+https://github.com/example/example.git#tag=v1.0.0")
+sha256sums=('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+            'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210')
