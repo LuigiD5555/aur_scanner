@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
 # Author GitHub: https://github.com/LuigiD5555
@@ -55,9 +54,17 @@ verify_pkgbuild() { # $1=AUR pkg name
   rule_checksums "$pkgb" "$checkout" "${STRICT:-0}" "${FAST:-0}" || failed=1
   # Always run red flags rule; it uses JS parser when available and falls back to Bash
   rule_red_flags "$pkgb" "${STRICT:-0}" || failed=1
+
   local mode="full"; [ "${FAST:-0}" = "1" ] && mode="fast"; if [ "${VERIFY_ONLY:-0}" = "1" ] && [ "${DEEP:-0}" != "1" ]; then mode="verify-only"; fi
-  [ "$mode" != "full" ] && log_info "Skipping makepkg --verifysource due to mode: $mode" || log_info "Running makepkg --verifysource (no build)…"
-  rule_verifysource "$checkout" "$mode" "${STRICT:-0}" || failed=1
+
+  if [ "$mode" != "full" ]; then
+    log_info "Skipping makepkg --verifysource due to mode: $mode"
+  elif [ "$failed" -gt 0 ] || [ "${REPORT_FAILS:-0}" -gt 0 ]; then
+    log_info "Skipping makepkg --verifysource because earlier checks already failed"
+  else
+    log_info "Running makepkg --verifysource (no build)…"
+    rule_verifysource "$checkout" "$mode" "${STRICT:-0}" || failed=1
+  fi
 
   if [ "$VERIFY_ONLY" = "1" ]; then log_info "VERIFY_ONLY=1 -> Verification finished. Not installing."; report_print "verify-only"; return 0; fi
   if [ "$failed" -gt 0 ] || [ "$REPORT_FAILS" -gt 0 ]; then report_print "install"; die "Verification reported failures; aborting installation."; fi
