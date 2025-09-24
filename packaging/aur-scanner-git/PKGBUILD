@@ -11,18 +11,23 @@ depends=('bash' 'git' 'curl' 'tar' 'pacman' 'sed' 'grep' 'awk' 'coreutils')
 optdepends=('nodejs>=18: enable JS parser assistance')
 provides=('aur-scanner')
 conflicts=('aur-scanner')
-source=("git+$url")
+source=("aur-scanner-src::git+file://$startdir/../..")
 sha256sums=('SKIP')
 install="aur-scanner.install"
 
 pkgver() {
-  cd "$srcdir/aur_verification"
-  git describe --long --tags 2>/dev/null | sed 's/^v//;s/-/./g' \
-    || printf 'r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  cd "$srcdir/aur-scanner-src"
+
+  if desc=$(git describe --long --tags 2>/dev/null); then
+    desc=${desc#v}
+    printf '%s' "${desc//-/.}"
+  else
+    printf 'r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  fi
 }
 
 package() {
-  cd "$srcdir/aur_verification"
+  cd "$srcdir/aur-scanner-src"
 
   local libroot="$pkgdir/usr/lib/aur-scanner"
   install -d "$libroot/bin" "$libroot/scripts"
@@ -32,7 +37,6 @@ package() {
 
   install -Dm755 scripts/install-scanner.sh "$libroot/scripts/install-scanner.sh"
   install -Dm755 scripts/uninstall-scanner.sh "$libroot/scripts/uninstall-scanner.sh"
-  install -Dm755 scripts/run-tests.sh "$libroot/scripts/run-tests.sh"
   install -Dm755 scripts/validate-sources.sh "$libroot/scripts/validate-sources.sh"
 
   cp -r lib "$libroot/"
