@@ -1,7 +1,7 @@
 # Maintainer: LuigiD5555 <aur@users.noreply.github.com>
 
 pkgname=aur-scanner-git
-pkgver=r81.g872e6f5
+pkgver=r82.g9334622
 pkgrel=1
 pkgdesc="Beta wrapper that validates AUR PKGBUILDs before delegating to yay/paru/pikaur"
 arch=('any')
