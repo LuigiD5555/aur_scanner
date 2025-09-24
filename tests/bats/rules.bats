@@ -77,6 +77,16 @@ teardown() {
   assert_report_has 'item_source_urls|FAIL|urls_https_fail'
 }
 
+@test "rule_sources allows https entries with Bash substring syntax" {
+  local pkgb
+  pkgb="$(fixture_path https_substring/PKGBUILD)"
+  with_clean_report
+  ALLOWED_DOMAINS='.*'
+  STRICT=0 QUIET=1 rule_sources "$pkgb" 0
+  assert_report_has 'item_source_urls|PASS|urls_https_ok'
+  assert_report_has 'item_allowed_domains|PASS|domains_ok'
+}
+
 @test "rule_vcs_pinning warns when unpinned" {
   local pkgb
   pkgb="$(fixture_path git_unpinned/PKGBUILD)"

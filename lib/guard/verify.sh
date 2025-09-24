@@ -30,7 +30,16 @@ guard_verify_aur_targets() {
     return 0
   fi
 
-  if [[ -z "${AUR_VERIFY_BIN:-}" || ! -x "$AUR_VERIFY_BIN" ]]; then
+  local -a aur_verify_cmd=()
+  if [[ -n "${AUR_VERIFY_BIN:-}" ]]; then
+    if [[ -x "$AUR_VERIFY_BIN" ]]; then
+      aur_verify_cmd=("$AUR_VERIFY_BIN")
+    elif [[ -f "$AUR_VERIFY_BIN" && -r "$AUR_VERIFY_BIN" ]]; then
+      aur_verify_cmd=(bash "$AUR_VERIFY_BIN")
+    fi
+  fi
+
+  if [[ ${#aur_verify_cmd[@]} -eq 0 ]]; then
     log_warn "aur-verify not found or not executable at: ${AUR_VERIFY_BIN:-<unset>} — delegating without verification"
     return 0
   fi
@@ -38,7 +47,7 @@ guard_verify_aur_targets() {
   if [[ $upgrade_mode -eq 1 ]]; then
     local -a failed=() passed=() rec
     for rec in "${candidates[@]}"; do
-      if "$AUR_VERIFY_BIN" --verify-only -- "$rec"; then
+      if "${aur_verify_cmd[@]}" --verify-only -- "$rec"; then
         passed+=("$rec")
       else
         log_warn "Verification failed for $rec — scheduling to ignore"
@@ -63,5 +72,5 @@ guard_verify_aur_targets() {
   fi
 
   log_debug "verifying candidates: ${candidates[*]}"
-  "$AUR_VERIFY_BIN" --verify-only -- "${candidates[@]}"
+  "${aur_verify_cmd[@]}" --verify-only -- "${candidates[@]}"
 }

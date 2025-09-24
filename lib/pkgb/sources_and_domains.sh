@@ -45,36 +45,45 @@ list_sources() {
   done
 }
 
-sources_have_only_https() {
-  local entry
-  while IFS= read -r entry; do
+_normalize_source_entry() {
+  local entry="$1"
+  if [[ $entry == *::[a-zA-Z][a-zA-Z0-9+.-]*://* ]]; then
     entry="${entry##*::}"
-    entry="${entry#\"}"
-    entry="${entry%\"}"
-    entry="${entry#'}"
-    entry="${entry%'}"
-    entry="${entry#"${entry%%[![:space:]]*}"}"
-    entry="${entry%"${entry##*[![:space:]]}"}"
-    entry="${entry#git+}"
-    [[ -z $entry ]] && continue
-    [[ $entry == https://* ]] || return 1
+  fi
+  entry="${entry#\"}"
+  entry="${entry%\"}"
+  entry="${entry#'}"
+  entry="${entry%'}"
+  entry="${entry#"${entry%%[![:space:]]*}"}"
+  entry="${entry%"${entry##*[![:space:]]}"}"
+  entry="${entry#git+}"
+  printf '%s\n' "$entry"
+}
+
+_source_domain() {
+  local entry
+  entry="$(_normalize_source_entry "$1")"
+  [[ $entry =~ ^[a-zA-Z0-9+.-]+:// ]] || return 1
+  entry="${entry#*://}"
+  printf '%s\n' "${entry%%/*}"
+}
+
+sources_have_only_https() {
+  local entry normalized
+  while IFS= read -r entry; do
+    normalized="$(_normalize_source_entry "$entry")"
+    [[ -z $normalized ]] && continue
+    [[ $normalized == https://* ]] || return 1
   done
   return 0
 }
 
 sources_domains_allowed() {
-  local entry domain
+  local entry domain normalized
   while IFS= read -r entry; do
-    entry="${entry##*::}"
-    entry="${entry#\"}"
-    entry="${entry%\"}"
-    entry="${entry#'}"
-    entry="${entry%'}"
-    entry="${entry#"${entry%%[![:space:]]*}"}"
-    entry="${entry%"${entry##*[![:space:]]}"}"
-    entry="${entry#git+}"
-    [[ $entry =~ ^[a-zA-Z0-9+.-]+:// ]] || continue
-    domain="${entry#*://}"
+    normalized="$(_normalize_source_entry "$entry")"
+    [[ $normalized =~ ^[a-zA-Z0-9+.-]+:// ]] || continue
+    domain="${normalized#*://}"
     domain="${domain%%/*}"
     [[ $domain =~ ${ALLOWED_DOMAINS} ]] || return 1
   done

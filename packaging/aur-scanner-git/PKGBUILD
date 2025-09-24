@@ -1,7 +1,7 @@
 # Maintainer: LuigiD5555 <aur@users.noreply.github.com>
 
 pkgname=aur-scanner-git
-pkgver=0.1.0.r0.g0000000
+pkgver=r81.g872e6f5
 pkgrel=1
 pkgdesc="Beta wrapper that validates AUR PKGBUILDs before delegating to yay/paru/pikaur"
 arch=('any')
@@ -11,7 +11,20 @@ depends=('bash' 'git' 'curl' 'tar' 'pacman' 'sed' 'grep' 'awk' 'coreutils')
 optdepends=('nodejs>=18: enable JS parser assistance')
 provides=('aur-scanner')
 conflicts=('aur-scanner')
-source=("aur-scanner-src::git+file://$startdir/../..")
+_local_repo="$startdir/../.."
+if [[ -d "${_local_repo}/.git" ]]; then
+  _aur_scanner_src_uri=${AUR_SCANNER_SRC_OVERRIDE:-"git+file://${_local_repo}"}
+else
+  if [[ -n ${AUR_SCANNER_SRC_OVERRIDE:-} ]]; then
+    _aur_scanner_src_uri="$AUR_SCANNER_SRC_OVERRIDE"
+  else
+    printf 'PKGBUILD error: expected local checkout at %s (aur-pack-local branch only).\n' "${_local_repo}" >&2
+    printf 'Set AUR_SCANNER_SRC_OVERRIDE to the desired git URL/path if you really want a remote clone.\n' >&2
+    exit 1
+  fi
+fi
+
+source=("aur-scanner-src::${_aur_scanner_src_uri}")
 sha256sums=('SKIP')
 install="aur-scanner.install"
 
@@ -32,6 +45,7 @@ package() {
   local libroot="$pkgdir/usr/lib/aur-scanner"
   install -d "$libroot/bin" "$libroot/scripts"
 
+  install -Dm755 bin/aur-verify "$libroot/bin/aur-verify"
   install -Dm755 bin/scan "$libroot/bin/scan"
   install -Dm755 bin/scan-shim "$libroot/bin/scan-shim"
 
@@ -41,7 +55,9 @@ package() {
 
   cp -r lib "$libroot/"
 
-  install -Dm755 bin/scan "$pkgdir/usr/bin/scan"
+  install -d "$pkgdir/usr/bin"
+  ln -s /usr/lib/aur-scanner/bin/aur-verify "$pkgdir/usr/bin/aur-verify"
+  ln -s /usr/lib/aur-scanner/bin/scan "$pkgdir/usr/bin/scan"
 
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
