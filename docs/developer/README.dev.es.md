@@ -422,6 +422,7 @@ sequenceDiagram
 
 ## Empaquetado para AUR (beta)
 
+- Compila localmente con `makepkg`: `cd packaging/aur-scanner-git && makepkg -Ccsf --install` (usa `AUR_SCANNER_SRC_OVERRIDE="git+file://$PWD/../.."` si vas a empaquetar desde un árbol con cambios sin commitear).
 - Existe una plantilla lista en `packaging/aur-scanner-git/` (PKGBUILD + .install) para publicar el wrapper como paquete `aur-scanner-git`.
 - El paquete instala el runtime en `/usr/lib/aur-scanner` y expone `scan`; luego el usuario debe ejecutar `install-scanner.sh` para enlazar los helpers.
 - `pkgver()` usa `git describe`, así que recuerda regenerar `.SRCINFO` con `makepkg --printsrcinfo` antes de subir cambios a AUR.

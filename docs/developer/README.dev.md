@@ -423,6 +423,7 @@ sequenceDiagram
 ## AUR packaging (beta)
 
 - The repository ships a ready-to-publish template in `packaging/aur-scanner-git/` (PKGBUILD + .install).
+- Build locally with `makepkg`: `cd packaging/aur-scanner-git && makepkg -Ccsf --install` (set `AUR_SCANNER_SRC_OVERRIDE="git+file://$PWD/../.."` when packaging from an uncommitted working tree).
 - `aur-scanner-git` installs the runtime under `/usr/lib/aur-scanner` and exposes `scan`; helpers are wired by running `install-scanner.sh` afterwards.
 - Update `pkgver` automatically via `pkgver()` (`git describe`). Remember to rerun `makepkg --printsrcinfo` before pushing to AUR.
 - Post-install message invites users to run `sudo /usr/lib/aur-scanner/scripts/install-scanner.sh --system`.
