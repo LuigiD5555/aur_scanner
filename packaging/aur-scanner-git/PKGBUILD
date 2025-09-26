@@ -1,7 +1,7 @@
 # Maintainer: LuigiD5555 <aur@users.noreply.github.com>
 
 pkgname=aur-scanner-git
-pkgver=r82.g9334622
+pkgver=0.8.0
 pkgrel=1
 pkgdesc="Beta wrapper that validates AUR PKGBUILDs before delegating to yay/paru/pikaur"
 arch=('any')
@@ -40,7 +40,11 @@ pkgver() {
 
   if desc=$(git describe --long --tags 2>/dev/null); then
     desc=${desc#v}
-    printf '%s' "${desc//-/.}"
+    if [[ $desc == *-0-g* ]]; then
+      printf '%s' "${desc%-0-g*}"
+    else
+      printf '%s' "${desc//-/.}"
+    fi
   else
     printf 'r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
   fi
