@@ -67,8 +67,8 @@ package() {
   cp -r lib "$libroot/"
 
   install -d "$pkgdir/usr/bin"
-  ln -s /usr/lib/aur-scanner/bin/aur-verify "$pkgdir/usr/bin/aur-verify"
-  ln -s /usr/lib/aur-scanner/bin/scan "$pkgdir/usr/bin/scan"
+  ln -s ../lib/aur-scanner/bin/aur-verify "$pkgdir/usr/bin/aur-verify"
+  ln -s ../lib/aur-scanner/bin/scan "$pkgdir/usr/bin/scan"
 
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
