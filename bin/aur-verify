@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 José Luis López López Prieto
+# Copyright (c) 2025 José Luis López López Prieto <ing.jlllopezp@gmail.com>
 # Author GitHub: https://github.com/LuigiD5555
+# Purpose: Verify AUR packages with standardized exit codes and status tokens.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -9,8 +10,7 @@ IFS=$'\n\t'
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LIB_DIR="$SCRIPT_DIR/../lib"
 
-# Load libs
-# Prefer sourcing submodules directly (keeping facades for compatibility)
+# --- Load libs (prefer sourcing submodules directly) ---
 source "$LIB_DIR/core/shell_safety.sh"
 
 LOG_TAG="aur-verify"
@@ -18,6 +18,7 @@ LOG_TAG="aur-verify"
 
 source "$LIB_DIR/guard/logging.sh"
 source "$LIB_DIR/aur/fetch_plain_and_snapshot.sh"
+
 # Optional helper metadata (supports showing repo info in verify-only)
 if [ -f "$LIB_DIR/helpers/yay_query.sh" ]; then
   source "$LIB_DIR/helpers/yay_query.sh"
@@ -29,9 +30,11 @@ else
   yay_exists_any() { return 1; }
   yay_exists_aur() { return 1; }
 fi
+
 source "$LIB_DIR/github/derive_candidates_from_repo.sh"
 source "$LIB_DIR/aur/search_and_resolve.sh"
 source "$LIB_DIR/pkgb/aggregate_pkgb_helpers.sh"
+
 # Optional JS parser helpers (descriptive name)
 if [ -f "$LIB_DIR/pkgb/js_parser_bridge.sh" ]; then
   source "$LIB_DIR/pkgb/js_parser_bridge.sh"
@@ -44,24 +47,73 @@ else
   js_pkgb_redflags_count() { echo 0; }
   js_pkgb_sources_compact() { :; }
 fi
+
 source "$LIB_DIR/i18n/messages.sh"
 source "$LIB_DIR/report/render_summary.sh"
 source "$LIB_DIR/verify/verification_rules_loader.sh"
 source "$LIB_DIR/verify/aur_verification_orchestrator.sh"
 
-# Defaults (can be overridden via env)
+# --- Defaults (can be overridden via env) ---
 YAY_BIN="${YAY_BIN:-yay}"
 STRICT="${STRICT:-0}"
 VERIFY_ONLY="${VERIFY_ONLY:-0}"
 FAST="${FAST:-0}"
+DEEP="${DEEP:-0}"          # Added default
 NO_PROMPT="${NO_PROMPT:-0}"
 VERBOSE="${VERBOSE:-0}"
 QUIET="${QUIET:-0}"
 # By default, do not print repo metadata in verify-only unless user requests it
 SHOW_METADATA="${SHOW_METADATA:-0}"
 
+# --- Exit-code policy (standardized for CI/dashboards) ---
+EC_OK=0
+EC_POLICY_FAIL=1
+EC_USAGE=2
+EC_NET=3
+EC_VERIFYSOURCE=4
+EC_INTERNAL=5
+
 # Required tools (lazy-require yay only when actually needed)
 require_tools git sed awk tr grep cut head sort uniq curl tar makepkg sha256sum
+
+print_help() {
+  cat <<'EOF'
+Usage: aur-verify.sh [OPTIONS] <aur_pkg|aur_url|github_url>
+
+Options:
+  --verify-only    Only verify sources/rules (no install)
+  --deep           Run makepkg --verifysource when applicable
+  --fast           Fast mode: skip downloads/verifysource where possible
+  --strict         Harden policies and escalate WARN->FAIL
+  --verbose        Verbose output (implies function traces/metadata)
+  --quiet          Quiet logs (summary only)
+  --metadata       Show extra repo/helper metadata (verify-only)
+  -h, --help       Show this help and exit
+
+Precedences:
+  FAST > DEEP  (if FAST=1, DEEP is ignored)
+  QUIET overrides VERBOSE/SHOW_METADATA
+
+Exit codes:
+  0 OK
+  1 Policy/verification failure
+  2 Usage error
+  3 Network/transient error (reserved)
+  4 verifysource failure (DEEP)
+  5 Internal/unclassified error
+EOF
+}
+
+# Local fail helper to control exit codes without relying on external die signature
+fail() {
+  local msg="$1"; local code="${2:-$EC_INTERNAL}"
+  if command -v log_error >/dev/null 2>&1; then
+    log_error "$msg"
+  else
+    echo "ERROR: $msg" >&2
+  fi
+  exit "$code"
+}
 
 main() {
   local input="" seen_input=0
@@ -74,17 +126,28 @@ main() {
       --verbose)     VERBOSE=1; shift; continue;;
       --quiet)       QUIET=1; shift; continue;;
       --metadata)    SHOW_METADATA=1; shift; continue;;
-      --)            shift; # everything after -- is positional
-                      if [ $# -gt 0 ]; then
-                        if [ "$seen_input" -eq 1 ]; then die "Multiple inputs provided"; fi
-                        input="$1"; seen_input=1; shift
-                      fi
-                      break;;
-      -*)            die "Unknown option: $1" ;;
-      *)             if [ "$seen_input" -eq 0 ]; then input="$1"; seen_input=1; shift; else die "Multiple inputs provided"; fi;;
+      -h|--help)     print_help; exit $EC_OK;;
+      --)            shift
+                     if [ $# -gt 0 ]; then
+                       if [ "$seen_input" -eq 1 ]; then fail "Multiple inputs provided" $EC_USAGE; fi
+                       input="$1"; seen_input=1; shift
+                     fi
+                     break;;
+      -*)            fail "Unknown option: $1" $EC_USAGE;;
+      *)             if [ "$seen_input" -eq 0 ]; then
+                       input="$1"; seen_input=1; shift
+                     else
+                       fail "Multiple inputs provided" $EC_USAGE
+                     fi;;
     esac
   done
-  [ -n "$input" ] || die "Usage: $0 [--verify-only] [--fast] [--strict] <aur_pkg|aur_url|github_url>"
+
+  [ -n "$input" ] || { print_help; fail "Missing input" $EC_USAGE; }
+
+  # Precedences
+  if [ "$FAST" = "1" ]; then
+    DEEP=0  # FAST > DEEP
+  fi
 
   local pkg
   # Auto-detect input type and prefer AUR plain endpoints when possible
@@ -108,13 +171,43 @@ main() {
       fi
     fi
   fi
-  [ -n "${pkg:-}" ] || die "Unable to resolve an AUR package from input."
+
+  [ -n "${pkg:-}" ] || fail "Unable to resolve an AUR package from input." $EC_USAGE
+
   log_info "Resolved package: $pkg"
+
   # Verbose implies showing function summaries and detailed logs
   if [ "$VERBOSE" = "1" ]; then SHOW_FUNCS=1; SHOW_METADATA=1; QUIET=0; fi
   # Quiet overrides verbose/show funcs/metadata
   if [ "$QUIET" = "1" ]; then SHOW_FUNCS=0; SHOW_METADATA=0; VERBOSE=0; fi
+
+  # Execute orchestrator and classify result
+  set +e
   install_or_verify "$pkg"
+  local rc=$?
+  set -e
+
+  if [ "$rc" -eq 0 ]; then
+    echo "STATUS: OK"
+    exit $EC_OK
+  fi
+
+  # Heuristic classification (adjust as your orchestrator evolves)
+  if [ "${DEEP:-0}" = "1" ]; then
+    # In DEEP mode, prefer to attribute failure to verifysource unless your
+    # orchestrator already emits a precise status token.
+    echo "STATUS: VERIFYSOURCE_FAIL"
+    exit $EC_VERIFYSOURCE
+  fi
+
+  if [ "$rc" -eq 2 ]; then
+    echo "STATUS: USAGE_ERROR"
+    exit $EC_USAGE
+  fi
+
+  # Default: policy/rules failure
+  echo "STATUS: POLICY_FAIL"
+  exit $EC_POLICY_FAIL
 }
 
 main "$@"

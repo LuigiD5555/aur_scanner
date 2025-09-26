@@ -1,25 +1,32 @@
 name: Release
+
 on:
   push:
     tags:
       - 'v*'
+
+permissions:
+  contents: write
+
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - name: Create artifacts
         run: |
+          set -euo pipefail
           mkdir -p dist
-          zip -r dist/aur_scanner-${GITHUB_REF_NAME}.zip bin lib docs scripts LICENSE README.md || true
+          zip -r "dist/aur_scanner-${GITHUB_REF_NAME}.zip" \
+            bin lib docs scripts LICENSE README.md || true
 
       - name: Generate checksums
         run: |
+          set -euo pipefail
           cd dist || exit 0
-          if ls * >/dev/null 2>&1; then
-            sha256sum * > SHA256SUMS
-          fi
+          ls -1 | grep -v '^SHA256SUMS$' | xargs -r sha256sum > SHA256SUMS
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -27,5 +34,3 @@ jobs:
           files: |
             dist/aur_scanner-${{ github.ref_name }}.zip
             dist/SHA256SUMS
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

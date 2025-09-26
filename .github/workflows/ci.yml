@@ -1,31 +1,50 @@
 name: CI
+
 on:
   push:
-    branches: [ development ]
+    branches: [ development, development-local ]
   pull_request:
-    branches: [ development ]
+    branches: [ development, development-local ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
       image: archlinux:latest
+    env:
+      # Define AUR_PACKAGE en repo vars para cambiarlo sin tocar YAML
+      AUR_PACKAGE: ${{ vars.AUR_PACKAGE || 'paru-bin' }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
+          set -euo pipefail
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed git nodejs npm bats shellcheck python
+          pacman -S --noconfirm --needed archlinux-keyring
+          pacman -S --noconfirm --needed git nodejs npm bats shellcheck python curl base-devel
 
       - name: ShellCheck
         run: |
-          mapfile -t files < <(git ls-files | grep -E '(^bin/(aur-verify|aur-guard)$|\.sh$)')
+          set -euo pipefail
+          mapfile -t files < <(git ls-files | grep -E '(^bin/(aur-verify|aur-guard|scan|scan-shim)$|\.sh$)')
           if [ "${#files[@]}" -gt 0 ]; then
-            shellcheck "${files[@]}"
+            shellcheck -x "${files[@]}"
+          else
+            echo "No shell scripts found. Skipping."
           fi
 
       - name: Node smoke test
         run: |
+          set -euo pipefail
           if [ -f bin/pkgb-parse ]; then
             node bin/pkgb-parse --help || true
           else
@@ -34,3 +53,30 @@ jobs:
 
       - name: Run test suite
         run: bash scripts/run-tests.sh
+
+      - name: Verify (strict, no install)
+        env:
+          VERIFY_ONLY: "1"
+          STRICT: "1"
+        run: bash bin/aur-verify "$AUR_PACKAGE"
+
+      - name: Deep verify (no build)
+        # Solo en push (no en PR) y únicamente si el branch es development o development-local
+        if: github.event_name == 'push' && (github.ref_name == 'development' || github.ref_name == 'development-local')
+        env:
+          VERIFY_ONLY: "1"
+          DEEP: "1"
+        run: bash bin/aur-verify "$AUR_PACKAGE"
+
+      - name: Upload logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: |
+            .ci-artifacts/**
+            logs/**
+            tests/**/output*.log
+            **/*.log
+            dist/**
+          if-no-files-found: ignore
