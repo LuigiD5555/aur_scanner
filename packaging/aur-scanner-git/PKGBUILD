@@ -17,14 +17,14 @@ fi
 _local_repo="$startdir/../.."
 if [[ -d "${_local_repo}/.git" ]]; then
   _aur_scanner_src_uri=${AUR_SCANNER_SRC_OVERRIDE:-"git+file://${_local_repo}"}
+elif [[ -n ${AUR_SCANNER_SRC_OVERRIDE:-} ]]; then
+  _aur_scanner_src_uri="$AUR_SCANNER_SRC_OVERRIDE"
+elif [[ -d "${_local_repo}" ]]; then
+  _aur_scanner_src_uri="file://${_local_repo}"
 else
-  if [[ -n ${AUR_SCANNER_SRC_OVERRIDE:-} ]]; then
-    _aur_scanner_src_uri="$AUR_SCANNER_SRC_OVERRIDE"
-  else
-    printf 'PKGBUILD error: expected local checkout at %s (aur-pack-local branch only).\n' "${_local_repo}" >&2
-    printf 'Set AUR_SCANNER_SRC_OVERRIDE to the desired git URL/path if you really want a remote clone.\n' >&2
-    exit 1
-  fi
+  printf 'PKGBUILD error: expected local checkout at %s (aur-pack-local branch only).\n' "${_local_repo}" >&2
+  printf 'Set AUR_SCANNER_SRC_OVERRIDE to the desired git URL/path if you really want a remote clone.\n' >&2
+  exit 1
 fi
 
 source=("aur-scanner-src::${_aur_scanner_src_uri}")
