@@ -11,6 +11,9 @@ depends=('bash' 'git' 'curl' 'tar' 'pacman' 'sed' 'grep' 'awk' 'coreutils')
 optdepends=('nodejs>=18: enable JS parser assistance')
 provides=('aur-scanner')
 conflicts=('aur-scanner')
+if [[ -z ${startdir:-} ]]; then
+  startdir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+fi
 _local_repo="$startdir/../.."
 if [[ -d "${_local_repo}/.git" ]]; then
   _aur_scanner_src_uri=${AUR_SCANNER_SRC_OVERRIDE:-"git+file://${_local_repo}"}
@@ -29,7 +32,11 @@ sha256sums=('SKIP')
 install="aur-scanner.install"
 
 pkgver() {
-  cd "$srcdir/aur-scanner-src"
+  local repo_dir="$srcdir/aur-scanner-src"
+  if [[ ! -d "$repo_dir" && -d "$srcdir/aur_verification" ]]; then
+    repo_dir="$srcdir/aur_verification"
+  fi
+  cd "$repo_dir"
 
   if desc=$(git describe --long --tags 2>/dev/null); then
     desc=${desc#v}
@@ -40,7 +47,11 @@ pkgver() {
 }
 
 package() {
-  cd "$srcdir/aur-scanner-src"
+  local repo_dir="$srcdir/aur-scanner-src"
+  if [[ ! -d "$repo_dir" && -d "$srcdir/aur_verification" ]]; then
+    repo_dir="$srcdir/aur_verification"
+  fi
+  cd "$repo_dir"
 
   local libroot="$pkgdir/usr/lib/aur-scanner"
   install -d "$libroot/bin" "$libroot/scripts"

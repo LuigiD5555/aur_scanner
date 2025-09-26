@@ -6,14 +6,19 @@ _common_resolve_repo_root() {
     printf '%s\n' "$TEST_REPO_ROOT"
     return
   fi
-  local origin dir
+  local origin dir fallback
   origin="${BATS_TEST_DIRNAME:-$(dirname -- "${BASH_SOURCE[0]}")}" 
   dir=$(cd -- "$origin" && pwd)
+  fallback=$(cd -- "$origin" && cd ../.. && pwd)
   while [[ "$dir" != "/" && ! -d "$dir/.git" ]]; do
     dir="$(dirname -- "$dir")"
   done
-  export TEST_REPO_ROOT="$dir"
-  printf '%s\n' "$dir"
+  if [[ -d "$dir/.git" ]]; then
+    export TEST_REPO_ROOT="$dir"
+  else
+    export TEST_REPO_ROOT="$fallback"
+  fi
+  printf '%s\n' "$TEST_REPO_ROOT"
 }
 
 setup_test_env() {
