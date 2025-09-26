@@ -13,7 +13,7 @@
 
 ---
 
-🌐 Read this in [English](Projects/Code/Personal_Projects/Scripts/AUR%20Verifier%20Project/aur_verification/README.md)
+🌐 Read this in [English](Projects/Code/Personal_Projects/Scripts/AUR%20Verifier%20Project/CODE/README.md)
 
 ---
 
