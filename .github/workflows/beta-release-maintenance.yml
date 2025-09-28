@@ -75,8 +75,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          chmod +x scripts/prepare_release_docs.py
-          python3 scripts/prepare_release_docs.py
+          chmod +x .github/scripts/prepare_release_docs.py
+          python3 .github/scripts/prepare_release_docs.py
 
           to_remove=(
             tests
