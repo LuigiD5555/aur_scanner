@@ -876,4 +876,4 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/).
 
 La versión de desarrollo actual es **0.8.0**.
 
-Para un historial completo de cambios, revisa [CHANGELOG.md](https://chatgpt.com/g/g-p-68c395d78f2481919cf9a6cee4e31b96-aur-packages/c/CHANGELOG.md).
+Para un historial completo de cambios, revisa [CHANGELOG.md](../CHANGELOG.md).

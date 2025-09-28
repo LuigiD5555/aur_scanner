@@ -856,4 +856,4 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 The current development version is **0.8.0**.  
 
-For a complete history of changes, see the [CHANGELOG.md](./CHANGELOG.md).
+For a complete history of changes, see the [CHANGELOG.md](../CHANGELOG.md).
