@@ -1,4 +1,4 @@
-# Escáner AUR (Bash)
+# AUR Scanner (Bash)
 
 > **Verifica primero, instala después** — Verificador de seguridad para paquetes AUR (y wrappers de GitHub) con instalación automática vía `yay` solo si todo pasa.
 
@@ -19,7 +19,6 @@
 
 ## 📚 Documentación
 
-- Índice de documentos: [Index](INDEX.md)
 - Documentación para desarrolladores: [English](../developer/README.dev.md) | [Español](../developer/README.dev.es.md)
 
 ---
