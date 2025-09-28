@@ -19,7 +19,7 @@
 
 ## 📚 Documentation
 
-- Developer docs: [English](docs/developer/README.dev.md) | [Español](docs/developer/README.dev.es.md)
+- Developer docs: [English](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
 
 ---
 
