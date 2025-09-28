@@ -1,0 +1,77 @@
+# Maintainer: LuigiD5555 <aur@users.noreply.github.com>
+
+pkgname=aur-scanner-git
+pkgver=0.8.0.23.g29cd912
+pkgrel=1
+pkgdesc="Beta wrapper that validates AUR PKGBUILDs before delegating to yay/paru/pikaur"
+arch=('any')
+url="https://github.com/LuigiD5555/aur_scanner"
+license=('MIT')
+depends=('bash' 'git' 'curl' 'tar' 'pacman' 'sed' 'grep' 'awk' 'coreutils')
+optdepends=('nodejs>=18: enable JS parser assistance')
+makedepends=('git')
+provides=('aur-scanner')
+conflicts=('aur-scanner')
+
+_default_src_uri="git+ssh://git@github.com/LuigiD5555/aur_scanner.git"
+if [[ -n ${AUR_SCANNER_SRC_OVERRIDE:-} ]]; then
+  _aur_scanner_src_uri="$AUR_SCANNER_SRC_OVERRIDE"
+else
+  _startdir=${startdir:-$PWD}
+  if _repo_root=$(cd -- "${_startdir}/../.." 2>/dev/null && pwd -P) && [[ -d "${_repo_root}/.git" ]]; then
+    _aur_scanner_src_uri="git+file://${_repo_root}"
+  else
+    _aur_scanner_src_uri="${_default_src_uri}"
+  fi
+fi
+
+source=("aur-scanner-src::${_aur_scanner_src_uri}")
+sha256sums=('SKIP')
+install="aur-scanner.install"
+
+pkgver() {
+  local repo_dir="$srcdir/aur-scanner-src"
+  if [[ ! -d "$repo_dir" && -d "$srcdir/aur_verification" ]]; then
+    repo_dir="$srcdir/aur_verification"
+  fi
+  cd "$repo_dir"
+
+  if desc=$(git describe --long --tags 2>/dev/null); then
+    desc=${desc#v}
+    if [[ $desc == *-0-g* ]]; then
+      printf '%s' "${desc%-0-g*}"
+    else
+      printf '%s' "${desc//-/.}"
+    fi
+  else
+    printf 'r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  fi
+}
+
+package() {
+  local repo_dir="$srcdir/aur-scanner-src"
+  if [[ ! -d "$repo_dir" && -d "$srcdir/aur_verification" ]]; then
+    repo_dir="$srcdir/aur_verification"
+  fi
+  cd "$repo_dir"
+
+  local libroot="$pkgdir/usr/lib/aur-scanner"
+  install -d "$libroot/bin" "$libroot/scripts"
+
+  install -Dm755 bin/aur-verify "$libroot/bin/aur-verify"
+  install -Dm755 bin/scan "$libroot/bin/scan"
+  install -Dm755 bin/scan-shim "$libroot/bin/scan-shim"
+
+  install -Dm755 scripts/install-scanner.sh "$libroot/scripts/install-scanner.sh"
+  install -Dm755 scripts/uninstall-scanner.sh "$libroot/scripts/uninstall-scanner.sh"
+  install -Dm755 scripts/validate-sources.sh "$libroot/scripts/validate-sources.sh"
+
+  cp -r lib "$libroot/"
+
+  install -d "$pkgdir/usr/bin"
+  ln -s ../lib/aur-scanner/bin/aur-verify "$pkgdir/usr/bin/aur-verify"
+  ln -s ../lib/aur-scanner/bin/scan "$pkgdir/usr/bin/scan"
+
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
