@@ -32,8 +32,12 @@ fi
 read -r -a protected <<<"${PROTECTED_PATHS}"
 for path in "${protected[@]}"; do
   [[ -z "$path" ]] && continue
-  if git rev-parse --verify "HEAD:$path" >/dev/null 2>&1 || git ls-files -- "$path" >/dev/null 2>&1; then
+  if git cat-file -e "HEAD:$path" 2>/dev/null; then
     git restore --source=HEAD --staged --worktree -- "$path"
+  elif git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+    git restore --source=HEAD --staged --worktree -- "$path"
+  else
+    echo "[sync] Skipping protected path '$path'; not tracked on target branch." >&2
   fi
 done
 
