@@ -27,6 +27,7 @@ jobs:
         run: bash .github/workflows/beta_yay_smoke.sh
 
       - name: Prune development assets and rewrite docs
+        if: always()
         run: |
           set -euo pipefail
 
@@ -45,11 +46,13 @@ jobs:
           done
 
       - name: Configure git user
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Commit changes if needed
+        if: always()
         run: |
           if ! git diff --quiet; then
             git add -A
@@ -59,6 +62,7 @@ jobs:
           fi
 
       - name: Push changes
+        if: always()
         run: |
           if [ -n "$(git log --branches --not --remotes --oneline)" ]; then
             git push origin HEAD
