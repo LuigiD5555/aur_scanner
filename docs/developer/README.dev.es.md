@@ -4,11 +4,11 @@ Este documento está destinado a **colaboradores y mantenedores**. Explica cómo
 
 ---
 
-🌐 Lea esto en [Inglés](https://github.com/LuigiD5555/aur_scanner/blob/development-local/README.dev.md)
+🌐 Lea esto en [Inglés](README.dev.md)
 
 ---
 
-🔙 Volver al README: [Inglés](https://github.com/LuigiD5555/aur_scanner/blob/development-local/README.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development-local/docs/es/README.es.md)
+🔙 Volver al README: [Inglés](../../README.md) | [Español](../es/README.es.md)
 
 ---
 
@@ -49,6 +49,7 @@ Este documento está destinado a **colaboradores y mantenedores**. Explica cómo
   - [Flujo de Desarrollo](#flujo-de-desarrollo)
     - [Inicio Rápido](#inicio-rápido)
     - [Ejecución de Pruebas](#ejecución-de-pruebas)
+    - [Sincronización Automatizada de Ramas](#sincronización-automatizada-de-ramas)
     - [Agregar Reglas](#agregar-reglas)
     - [Recetas CI](#recetas-ci)
   - [Integración con Parser Node (`bin/pkgb-parse`)](#integración-con-parser-node-binpkgb-parse)
@@ -694,6 +695,14 @@ node --test tests/js          # pruebas Node
 ```
 - **Pruebas Bats**: resolución, guard, instaladores, empaquetado, reglas, scan wrapper, validate\_sources.
 - **Pruebas Node**: CLI (`cli.test.mjs`) y parser (`parser.test.mjs`).
+
+---
+
+### Sincronización Automatizada de Ramas
+
+- Cada push a `development` ejecuta `.github/workflows/sync-development.yml`.
+- El workflow integra los cambios en `beta-release` y conserva todo el contenido de `packaging/aur-scanner-git/` (configuración AUR en red).
+- Si solo cambian los archivos protegidos, la ejecución se cancela sin hacer push; si hay conflictos, el job falla para que puedas resolverlos manualmente.
 
 ---
 

@@ -4,11 +4,11 @@ This document is intended for **contributors and maintainers**. It explains how 
 
 ---
 
-🌐 Lea esto en [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer-local/README.dev.es.md)
+🌐 Lea esto en [Español](README.dev.es.md)
 
 ---
 
-🔙 Back to README: [English](https://github.com/LuigiD5555/aur_scanner/blob/development-local/README.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development-local/docs/es/README.es.md)
+🔙 Back to README: [English](../../README.md) | [Español](../es/README.es.md)
 
 ---
 
@@ -49,6 +49,7 @@ This document is intended for **contributors and maintainers**. It explains how 
   - [Development Workflow](#development-workflow)
     - [Quick Start](#quick-start)
     - [Running Tests](#running-tests)
+    - [Automated Branch Sync](#automated-branch-sync)
     - [Adding Rules](#adding-rules)
     - [CI Recipes](#ci-recipes)
   - [Node Parser Integration (`bin/pkgb-parse`)](#node-parser-integration-binpkgb-parse)
@@ -681,6 +682,12 @@ node --test tests/js          # Node tests
 ```
 - **Bats tests**: resolution, guard, installers, packaging, rules, scan wrapper, validate\_sources.
 - **Node tests**: CLI (`cli.test.mjs`) and parser (`parser.test.mjs`).
+
+### Automated Branch Sync
+
+- Every push to `development` triggers `.github/workflows/sync-development.yml`.
+- The workflow merges those changes into `beta-release` while preserving everything under `packaging/aur-scanner-git/` (AUR packaging configs).
+- If protected files are the only differences, the job aborts without pushing; merge conflicts fail fast so they can be resolved manually.
 
 ### Adding Rules
 

@@ -1,0 +1,40 @@
+name: Sync development to beta-release
+
+on:
+  push:
+    branches:
+      - development
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-development-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure Git user
+        run: |
+          git config user.name "aur-verification bot"
+          git config user.email "actions@users.noreply.github.com"
+      - name: Sync branches
+        env:
+          SOURCE_BRANCH: development
+          TARGET_BRANCH: beta-release
+          PROTECTED_PATHS: "packaging/aur-scanner-git"
+        run: scripts/sync-development.sh
+      - name: Push updated target branch
+        env:
+          TARGET_BRANCH: beta-release
+        run: |
+          if git rev-list --count origin/${TARGET_BRANCH}..HEAD | grep -qx '0'; then
+            echo "No changes to push.";
+          else
+            git push origin HEAD:${TARGET_BRANCH}
+          fi
