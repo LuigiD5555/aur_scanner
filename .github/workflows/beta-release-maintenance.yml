@@ -21,55 +21,10 @@ jobs:
         run: |
           set -euo pipefail
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git tar zstd python
+          pacman -S --noconfirm --needed base-devel git tar zstd python yay
 
       - name: Packaging smoke test
-        run: |
-          set -euo pipefail
-          WORK_DIR=$(mktemp -d)
-          trap 'rm -rf "$WORK_DIR"' EXIT
-
-          PKGBUILD_DIR="packaging/aur-scanner-git"
-          if [[ ! -d "$PKGBUILD_DIR" ]]; then
-            echo "[beta-qa] packaging directory missing" >&2
-            exit 1
-          fi
-
-          mkdir -p "$WORK_DIR/aur-scanner-git"
-          cp -a "$PKGBUILD_DIR/." "$WORK_DIR/aur-scanner-git/"
-
-          pushd "$WORK_DIR/aur-scanner-git" >/dev/null
-          export PKGDEST="$WORK_DIR/pkgdest"
-          mkdir -p "$PKGDEST"
-
-          makepkg -Ccsf
-          PKG_FILE=$(makepkg --packagelist)
-          popd >/dev/null
-
-          if [[ ! -f "$PKG_FILE" ]]; then
-            echo "[beta-qa] makepkg did not produce a package" >&2
-            exit 1
-          fi
-
-          PKGROOT="$WORK_DIR/pkgroot"
-          mkdir -p "$PKGROOT"
-          tar -xf "$PKG_FILE" -C "$PKGROOT"
-
-          export PATH="$PKGROOT/usr/bin:$PATH"
-          if ! command -v aur-verify >/dev/null; then
-            echo "[beta-qa] aur-verify binary missing in produced package" >&2
-            exit 1
-          fi
-          if ! command -v scan >/dev/null; then
-            echo "[beta-qa] scan binary missing in produced package" >&2
-            exit 1
-          fi
-          if ! aur-verify --help | grep -q "Usage: aur-verify.sh"; then
-            echo "[beta-qa] aur-verify --help does not print expected banner" >&2
-            exit 1
-          fi
-
-          echo "[beta-qa] Packaging smoke test passed."
+        run: bash .github/workflows/beta_yay_smoke.sh
 
       - name: Prune development assets and rewrite docs
         run: |
