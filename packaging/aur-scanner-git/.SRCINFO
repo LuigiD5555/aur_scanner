@@ -19,7 +19,7 @@ pkgbase = aur-scanner-git
 	optdepends = nodejs>=18: enable JS parser assistance
 	provides = aur-scanner
 	conflicts = aur-scanner
-	source = aur-scanner-src::git+ssh://git@github.com/LuigiD5555/aur_scanner.git
+	source = aur-scanner-src::git+https://github.com/LuigiD5555/aur_scanner.git
 	sha256sums = SKIP
 
 pkgname = aur-scanner-git

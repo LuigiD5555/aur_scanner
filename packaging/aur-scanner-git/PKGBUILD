@@ -13,7 +13,7 @@ makedepends=('git')
 provides=('aur-scanner')
 conflicts=('aur-scanner')
 
-_default_src_uri="git+ssh://git@github.com/LuigiD5555/aur_scanner.git"
+_default_src_uri="git+https://github.com/LuigiD5555/aur_scanner.git"
 if [[ -n ${AUR_SCANNER_SRC_OVERRIDE:-} ]]; then
   _aur_scanner_src_uri="$AUR_SCANNER_SRC_OVERRIDE"
 else
