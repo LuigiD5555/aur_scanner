@@ -1,0 +1,112 @@
+name: Beta Release Maintenance
+
+on:
+  push:
+    branches: [ beta-release ]
+  workflow_dispatch: {}
+
+jobs:
+  prepare-beta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed base-devel git tar zstd python
+
+      - name: Packaging smoke test
+        run: |
+          set -euo pipefail
+          WORK_DIR=$(mktemp -d)
+          trap 'rm -rf "$WORK_DIR"' EXIT
+
+          PKGBUILD_DIR="packaging/aur-scanner-git"
+          if [[ ! -d "$PKGBUILD_DIR" ]]; then
+            echo "[beta-qa] packaging directory missing" >&2
+            exit 1
+          fi
+
+          mkdir -p "$WORK_DIR/aur-scanner-git"
+          cp -a "$PKGBUILD_DIR/." "$WORK_DIR/aur-scanner-git/"
+
+          pushd "$WORK_DIR/aur-scanner-git" >/dev/null
+          export PKGDEST="$WORK_DIR/pkgdest"
+          mkdir -p "$PKGDEST"
+
+          makepkg -Ccsf
+          PKG_FILE=$(makepkg --packagelist)
+          popd >/dev/null
+
+          if [[ ! -f "$PKG_FILE" ]]; then
+            echo "[beta-qa] makepkg did not produce a package" >&2
+            exit 1
+          fi
+
+          PKGROOT="$WORK_DIR/pkgroot"
+          mkdir -p "$PKGROOT"
+          tar -xf "$PKG_FILE" -C "$PKGROOT"
+
+          export PATH="$PKGROOT/usr/bin:$PATH"
+          if ! command -v aur-verify >/dev/null; then
+            echo "[beta-qa] aur-verify binary missing in produced package" >&2
+            exit 1
+          fi
+          if ! command -v scan >/dev/null; then
+            echo "[beta-qa] scan binary missing in produced package" >&2
+            exit 1
+          fi
+          if ! aur-verify --help | grep -q "Usage: aur-verify.sh"; then
+            echo "[beta-qa] aur-verify --help does not print expected banner" >&2
+            exit 1
+          fi
+
+          echo "[beta-qa] Packaging smoke test passed."
+
+      - name: Prune development assets and rewrite docs
+        run: |
+          set -euo pipefail
+
+          chmod +x .github/scripts/prepare_release_docs.py
+          python3 .github/scripts/prepare_release_docs.py
+
+          to_remove=(
+            tests
+            scripts/run-tests.sh
+            scripts/sync-development.sh
+          )
+          for path in "${to_remove[@]}"; do
+            if [ -e "$path" ] || git ls-files --error-unmatch "$path" >/dev/null 2>&1; then
+              git rm -rf "$path" || rm -rf "$path"
+            fi
+          done
+
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit changes if needed
+        run: |
+          if ! git diff --quiet; then
+            git add -A
+            git commit -m "chore(beta): prune dev assets and update docs"
+          else
+            echo "No changes to commit."
+          fi
+
+      - name: Push changes
+        run: |
+          if [ -n "$(git log --branches --not --remotes --oneline)" ]; then
+            git push origin HEAD
+          else
+            echo "Nothing to push."
+          fi
