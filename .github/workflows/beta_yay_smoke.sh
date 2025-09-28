@@ -10,7 +10,7 @@ ensure_yay() {
     return 0
   fi
 
-  pacman -S --noconfirm --needed base-devel git go sudo
+  pacman -S --noconfirm --needed git base-devel
 
   if ! id builder >/dev/null 2>&1; then
     useradd -m builder

@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git tar zstd python yay
+          pacman -S --noconfirm --needed base-devel git tar zstd python
 
       - name: Packaging smoke test
         run: bash .github/workflows/beta_yay_smoke.sh
