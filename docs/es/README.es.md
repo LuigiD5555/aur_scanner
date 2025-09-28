@@ -13,14 +13,14 @@
 
 ---
 
-🌐 Read this in [English](Projects/Code/Personal_Projects/Scripts/AUR%20Verifier%20Project/CODE/README.md)
+🌐 Read this in [English](../../README.md)
 
 ---
 
 ## 📚 Documentación
 
 - Índice de documentos: [Index](INDEX.md)
-- Documentación para desarrolladores: [English](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
+- Documentación para desarrolladores: [English](../developer/README.dev.md) | [Español](../developer/README.dev.es.md)
 
 ---
 
@@ -374,7 +374,7 @@ aur-scanner --verify-only <aur-package>
 - **PGP**: si se declara `.sig`, `makepkg --verifysource` debe pasar.
 - **Banderas rojas**: resalta patrones riesgosos (diagnóstico).
 
-> Ver reglas completas y tabla de severidad en la [documentación de desarrollo](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md).
+> Ver reglas completas y tabla de severidad en la [documentación de desarrollo](../developer/README.dev.es.md).
 
 ---
 

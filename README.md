@@ -20,7 +20,7 @@
 ## 📚 Documentation
 
 - Docs index: [Index](INDEX.md)
-- Developer docs: [English](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
+- Developer docs: [English](docs/developer/README.dev.md) | [Español](docs/developer/README.dev.es.md)
 
 ---
 
@@ -374,7 +374,7 @@ aur-scanner --verify-only <aur-package>
 - **PGP**: if `.sig` is declared, `makepkg --verifysource` must pass.
 - **Red flags**: highlights risky patterns (diagnostic).
 
-> See the full rule set and severity table in the [developer docs](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md).
+> See the full rule set and severity table in the [developer docs](docs/developer/README.dev.md).
 
 ---
 
