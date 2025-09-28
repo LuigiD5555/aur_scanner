@@ -19,7 +19,6 @@
 
 ## 📚 Documentation
 
-- Docs index: [Index](INDEX.md)
 - Developer docs: [English](docs/developer/README.dev.md) | [Español](docs/developer/README.dev.es.md)
 
 ---
