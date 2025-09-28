@@ -13,7 +13,7 @@
 
 ---
 
-🌐 Read this in [English](Projects/Code/Personal_Projects/Scripts/AUR%20Verifier%20Project/aur_verification/README.md)
+🌐 Read this in [English](Projects/Code/Personal_Projects/Scripts/AUR%20Verifier%20Project/CODE/README.md)
 
 ---
 
@@ -143,6 +143,16 @@ Aparecen en el reporte como `item_js_unpinned`, `item_js_https`, `item_js_redfla
 ---
 
 ## 🚀 Inicio rápido
+
+### Instalar desde AUR (beta)
+
+```bash
+yay -S aur-scanner-git
+```
+
+- Instala los archivos del wrapper en `/usr/lib/aur-scanner`.
+- Después de instalar, ejecuta `sudo /usr/lib/aur-scanner/scripts/install-scanner.sh --system` (o la variante `--user`) para enlazar los helpers.
+- El paquete está marcado como **beta**; la API y CLI aún pueden cambiar.
 
 ### Wrapper drop-in (transparente)
 

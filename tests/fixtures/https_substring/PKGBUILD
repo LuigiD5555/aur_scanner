@@ -1,0 +1,9 @@
+pkgname=https-substring
+pkgver=1.0
+_aqt=aqtinstall-3.5.0
+_aqt_whl=${_aqt}-py3-none-any.whl
+source=(
+  "https://files.pythonhosted.org/packages/py3/${_aqt::1}/$_aqt/$_aqt_whl"
+  "runanki-${pkgver}.py::https://raw.githubusercontent.com/ankitects/anki/${pkgver}/qt/runanki.py"
+)
+sha256sums=(SKIP SKIP)

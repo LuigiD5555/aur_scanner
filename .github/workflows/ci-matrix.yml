@@ -1,0 +1,114 @@
+# .github/workflows/ci-matrix.yml
+name: CI (matrix)
+
+on:
+  push:
+    branches: [ development, development-local ]   # Solo push a estos branches
+  schedule:
+    - cron: '0 5 * * *'  # Ejecución diaria 05:00 UTC (ajústalo a tu preferencia)
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-matrix-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed archlinux-keyring
+          pacman -S --noconfirm --needed git nodejs npm bats shellcheck python curl base-devel
+
+      - name: ShellCheck
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files | grep -E '(^bin/(aur-verify|aur-guard|scan|scan-shim)$|\.sh$)')
+          if [ "${#files[@]}" -gt 0 ]; then
+            shellcheck -x "${files[@]}"
+          else
+            echo "No shell scripts found. Skipping."
+          fi
+
+      - name: Node smoke test
+        run: |
+          set -euo pipefail
+          if [ -f bin/pkgb-parse ]; then
+            node bin/pkgb-parse --help || true
+          else
+            echo "No pkgb-parse CLI found, skipping."
+          fi
+
+      - name: Run test suite
+        run: bash scripts/run-tests.sh
+
+      - name: Upload logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: |
+            .ci-artifacts/**
+            logs/**
+            tests/**/output*.log
+            **/*.log
+            dist/**
+          if-no-files-found: ignore
+
+  verify-aur:
+    needs: [lint-and-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: archlinux:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Mantén paquetes ligeros y estables; puedes ajustar esta lista
+        aur_pkg: [ 'paru-bin', 'yay-bin', 'paru', 'yay' ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed archlinux-keyring
+          pacman -S --noconfirm --needed git nodejs npm bats shellcheck python curl base-devel
+
+      - name: Verify (strict, no install) — ${{ matrix.aur_pkg }}
+        env:
+          VERIFY_ONLY: "1"
+          STRICT: "1"
+        run: bash bin/aur-verify "${{ matrix.aur_pkg }}"
+
+      - name: Deep verify (no build) — ${{ matrix.aur_pkg }}
+        # Solo en push (no aplica a schedule, si quieres incluir schedule, elimina la condición)
+        if: github.event_name == 'push'
+        env:
+          VERIFY_ONLY: "1"
+          DEEP: "1"
+        run: bash bin/aur-verify "${{ matrix.aur_pkg }}"
+
+      - name: Upload logs (on failure) — ${{ matrix.aur_pkg }}
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs-${{ matrix.aur_pkg }}
+          path: |
+            .ci-artifacts/**
+            logs/**
+            tests/**/output*.log
+            **/*.log
+            dist/**
+          if-no-files-found: ignore

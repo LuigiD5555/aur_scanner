@@ -4,7 +4,7 @@
 # aggregate_pkgb_helpers.sh — aggregates PKGBUILD helper functions
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-ALLOWED_DOMAINS="${ALLOWED_DOMAINS:-github.com|codeload.github.com|objects.githubusercontent.com|gitlab.com}"
+ALLOWED_DOMAINS="${ALLOWED_DOMAINS:-github.com|codeload.github.com|objects.githubusercontent.com|raw.githubusercontent.com|gitlab.com}"
 
 source "$SCRIPT_DIR/sources_and_domains.sh"
 source "$SCRIPT_DIR/checksums_policy.sh"

@@ -144,6 +144,16 @@ They appear in the report as `item_js_unpinned`, `item_js_https`, `item_js_redfl
 
 ## 🚀 Quick start
 
+### Install from AUR (beta)
+
+```bash
+yay -S aur-scanner-git
+```
+
+- Installs the wrapper files under `/usr/lib/aur-scanner`.
+- Run `sudo /usr/lib/aur-scanner/scripts/install-scanner.sh --system` (or the `--user` variant) to wire the helper shims after installing.
+- Package is tagged as **beta**; breaking changes are still possible.
+
 ### Drop-in wrapper (transparent)
 
 After installing, it wraps your AUR helper transparently:

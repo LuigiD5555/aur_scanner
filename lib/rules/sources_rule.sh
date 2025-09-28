@@ -11,7 +11,14 @@ rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
   if ! printf '%s\n' "$sources" | sources_have_only_https; then
     if [ "${VERBOSE:-0}" = "1" ]; then
       log_warn "All sources (marking non-HTTPS):"
-      printf '%s\n' "$sources" | awk '{p=$0; if ($0 !~ /^https:\/\//) p="[non-https] " p; print "  " p}' >&2
+      while IFS= read -r src; do
+        local normalized marker=""
+        normalized="$(_normalize_source_entry "$src")"
+        if [[ -n $normalized && $normalized != https://* ]]; then
+          marker="[non-https] "
+        fi
+        printf '  %s%s\n' "$marker" "$src" >&2
+      done <<< "$sources"
     else
       log_warn "Non-HTTPS sources detected:"; printf '%s\n' "$sources" | awk '!/^https:/' | sed 's/^/  /' >&2
     fi
@@ -27,7 +34,15 @@ rule_sources() { # $1=pkgb $2=strict -> HTTPS + domains
   if ! printf '%s\n' "$sources" | sources_domains_allowed; then
     if [ "${VERBOSE:-0}" = "1" ]; then
       log_warn "All sources (marking non-allowed domains):"
-      printf '%s\n' "$sources" | awk -v re="$ALLOWED_DOMAINS" 'BEGIN{IGNORECASE=0} {ok=($0 ~ re); p=$0; if (!ok) p="[non-allowed] " p; print "  " p}' >&2
+      while IFS= read -r src; do
+        local domain marker=""
+        if domain="$(_source_domain "$src")"; then
+          [[ $domain =~ ${ALLOWED_DOMAINS} ]] || marker="[non-allowed] "
+        else
+          marker="[non-allowed] "
+        fi
+        printf '  %s%s\n' "$marker" "$src" >&2
+      done <<< "$sources"
     else
       log_warn "Sources from non-allowed domains:"; printf '%s\n' "$sources" | grep -Ev "$ALLOWED_DOMAINS" | sed 's/^/  /' >&2 || true
     fi
