@@ -13,7 +13,7 @@
 
 ---
 
-🌐 Lea esto en [Español](README.es.md)
+🌐 Lea esto en [Español](docs/es/README.es.md)
 
 ---
 
@@ -151,7 +151,6 @@ yay -S aur-scanner-git
 ```
 
 - Installs the wrapper files under `/usr/lib/aur-scanner`.
-- Run `sudo /usr/lib/aur-scanner/scripts/install-scanner.sh --system` (or the `--user` variant) to wire the helper shims after installing.
 - Package is tagged as **beta**; breaking changes are still possible.
 
 ### Drop-in wrapper (transparent)
@@ -168,7 +167,7 @@ pamac build <aur-package>
 - During full upgrades (`yay -Syu`, `paru -Syu`, `pikaur -Syu`, etc.) it pre-scans the pending AUR queue; failures are auto-added to `--ignore` so the rest keep updating.
 - If everything passes, your helper proceeds normally.
 - To bypass once, you can set: `SCAN_BYPASS=1` (not recommended).
-- Flags such as `--verify-only`, `--strict`, or `--fast` are understood **only when the helper name points to the wrapper**. `scripts/install-scanner.sh` already drops the necessary shims; for manual setups create one yourself (for example `ln -sf /path/to/repo/bin/scan ~/.local/bin/yay`).
+- Flags such as `--verify-only`, `--strict`, or `--fast` are understood **only when the helper name points to the wrapper**. Create the symlink yourself for manual setups (for example `ln -sf /path/to/repo/bin/scan ~/.local/bin/yay`).
 - For parser-only checks without downloads, run through the wrapper with `FAST=1 --verify-only` (or `FAST=1 VERIFY_ONLY=1`).
 - Helper shims auto-detect wrapper flags: if you type `yay … --verify-only` the shim hands control to `scan`; otherwise it delegates straight to the real helper.
 - Unsure which mode you’re in? Run `command -v yay` and `readlink -f "$(command -v yay)"`. If both point to the wrapper path (`…/scan`), you can write `yay -Syu pkg --verify-only`; otherwise call it explicitly as `scan yay -Syu --verify-only pkg` (or create the shim).
