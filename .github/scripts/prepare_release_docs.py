@@ -45,6 +45,14 @@ def git_remote_https(repo_root: Path) -> str:
 def rewrite_links(text: str, dev_en_url: str, dev_es_url: str) -> str:
     updated = text.replace("(docs/developer/README.dev.md)", f"({dev_en_url})")
     updated = updated.replace("(docs/developer/README.dev.es.md)", f"({dev_es_url})")
+    updated = updated.replace(
+        f"({dev_en_url.replace('/blob/development/', '/blob/beta-release/')})",
+        f"({dev_en_url})",
+    )
+    updated = updated.replace(
+        f"({dev_es_url.replace('/blob/development/', '/blob/beta-release/')})",
+        f"({dev_es_url})",
+    )
     lines = [line for line in updated.splitlines() if "install-scanner.sh" not in line]
     result = "\n".join(lines)
     if updated.endswith("\n"):
