@@ -1,46 +1,62 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ ${CI:-} ]]; then
-  set -x
-fi
+[[ ${CI:-} ]] && set -x
 
-if ! command -v yay >/dev/null; then
-  echo "[beta-qa] yay not installed" >&2
-  exit 1
-fi
+ensure_yay() {
+  if command -v yay >/dev/null 2>&1; then
+    return 0
+  fi
 
-export YAYFLAGS="--noconfirm --nodiffmenu --noeditmenu --nocleanmenu"
+  pacman -S --noconfirm --needed git base-devel
 
-if ! yay ${YAYFLAGS} --needed aur-scanner >/tmp/yay-install.log 2>&1; then
+  if ! id builder >/dev/null 2>&1; then
+    useradd -m builder
+    echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+  fi
+
+  su builder -c '
+    set -euo pipefail
+    WORKDIR=$(mktemp -d)
+    trap "rm -rf \"$WORKDIR\"" EXIT
+    cd "$WORKDIR"
+    git clone https://aur.archlinux.org/yay.git
+    cd yay
+    makepkg -si --noconfirm
+  '
+}
+
+pacman -Syu --noconfirm
+ensure_yay
+
+YAY_FLAGS="--noconfirm --needed --answerdiff None --answerclean None"
+
+if ! su builder -c "yay $YAY_FLAGS aur-scanner" >/tmp/yay-install.log 2>&1; then
   cat /tmp/yay-install.log >&2
   echo "[beta-qa] failed to install aur-scanner via yay" >&2
   exit 1
 fi
 
-if ! command -v scan >/dev/null; then
-  echo "[beta-qa] scan binary missing after yay install" >&2
-  exit 1
-fi
+for bin in scan aur-verify; do
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    echo "[beta-qa] $bin binary missing after yay install" >&2
+    exit 1
+  fi
+done
 
-if ! command -v aur-verify >/dev/null; then
-  echo "[beta-qa] aur-verify binary missing after yay install" >&2
-  exit 1
-fi
-
-if ! aur-verify --help | grep -q "Usage: aur-verify.sh"; then
+aur-verify --help | grep -q "Usage: aur-verify.sh" || {
   echo "[beta-qa] aur-verify --help did not emit expected banner" >&2
   exit 1
-fi
+}
 
-if ! scan --help | grep -q "Usage:"; then
+scan --help | grep -q "Usage:" || {
   echo "[beta-qa] scan --help did not emit expected usage" >&2
   exit 1
-fi
+}
 
-if ! scan yay -Syu --verify-only aur-scanner >/tmp/scan-run.log 2>&1; then
+if ! su builder -c "scan yay -Syu --verify-only aur-scanner" >/tmp/scan-run.log 2>&1; then
   cat /tmp/scan-run.log >&2
-  echo "[beta-qa] scan command failed" >&2
+  echo "[beta-qa] scan wrapper invocation failed" >&2
   exit 1
 fi
 
