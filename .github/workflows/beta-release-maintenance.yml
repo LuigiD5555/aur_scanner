@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git tar zstd
+          pacman -S --noconfirm --needed base-devel git tar zstd python
 
       - name: Packaging smoke test
         run: |
@@ -75,43 +75,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          repo_url=$(git config --get remote.origin.url)
-          repo_url=${repo_url%.git}
-          repo_url=${repo_url/git@github.com:/https://github.com/}
-          dev_en="$repo_url/blob/development/docs/developer/README.dev.md"
-          dev_es="$repo_url/blob/development/docs/developer/README.dev.es.md"
-
-          python3 - <<PY
-from pathlib import Path
-
-dev_en = "${dev_en}"
-dev_es = "${dev_es}"
-
-readme_paths = [Path("README.md"), Path("docs/es/README.es.md")]
-for path in readme_paths:
-    if not path.exists():
-        continue
-    text = path.read_text()
-    new_text = text.replace("(docs/developer/README.dev.md)", f"({dev_en})")
-    new_text = new_text.replace("(docs/developer/README.dev.es.md)", f"({dev_es})")
-    lines = [line for line in new_text.splitlines() if "install-scanner.sh" not in line]
-    updated = "\n".join(lines)
-    if new_text.endswith("\n"):
-        updated += "\n"
-    if updated != text:
-        path.write_text(updated)
-
-index_path = Path("docs/INDEX.md")
-if index_path.exists():
-    data = index_path.read_text()
-    updated = data.replace("`../README.dev.md`", f"<{dev_en}>")
-    updated = updated.replace("`../README.dev.es.md`", f"<{dev_es}>")
-    if updated != data:
-        index_path.write_text(updated)
-PY
+          chmod +x scripts/prepare_release_docs.py
+          python3 scripts/prepare_release_docs.py
 
           to_remove=(
-            docs/developer
             tests
             scripts/run-tests.sh
             scripts/sync-development.sh
