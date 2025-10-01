@@ -9,7 +9,15 @@
 [![PGP](https://img.shields.io/badge/PGP-verification-informational?logo=gnupg&logoColor=white)](https://gnupg.org/)
 [![sha256](https://img.shields.io/badge/checksums-sha256-success)](https://en.wikipedia.org/wiki/SHA-2)
 [![yay](https://img.shields.io/badge/helper-yay-0A0A0A)](https://github.com/Jguer/yay)
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/luigid5555)
+
+---
+
+## Estado del proyecto
+
+Este proyecto nació como una **prueba de concepto** en respuesta a los ataques ocurridos en **septiembre de 2025** hacia los paquetes de la comunidad **AUR** en Arch Linux.  
+Su objetivo inicial fue **explorar herramientas de auditoría y verificación** que pudieran aportar a la seguridad de los usuarios de esta plataforma.  
+
+Actualmente, el proyecto **no cuenta con mantenimiento activo**. El código se publica bajo licencia libre para fines educativos y de investigación, y queda disponible para que cualquier persona interesada pueda estudiarlo, reutilizarlo o darle continuidad mediante un *fork*.  
 
 ---
 
@@ -19,7 +27,7 @@
 
 ## 📚 Documentación
 
-- Documentación para desarrolladores: [English](../developer/README.dev.md) | [Español](../developer/README.dev.es.md)
+- Documentación para desarrolladores: [English]([../developer/README.dev.md](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
 
 ---
 
@@ -397,21 +405,16 @@ Más escenarios y logs: ver docs de desarrollo.
 
 ## 🤝 Contribuciones
 
-Se aceptan contribuciones — código, docs, tests y propuestas de reglas.
-Buenas primeras tareas: mejoras de documentación, mensajes de error más claros, tests adicionales.
-Ver docs de desarrollo para arquitectura, reglas y entorno de pruebas.
+Las contribuciones son bienvenidas: código, documentación, pruebas y propuestas de reglas.
 
----
+- **Buenas primeras tareas:** mejoras en la documentación, mensajes de error más claros, pruebas adicionales.  
+- Por favor, sigue el estilo y las convenciones de código ya existentes.  
+- Asegúrate de que las nuevas funciones o reglas incluyan sus pruebas correspondientes.  
+- Si planeas un cambio mayor, abre primero un issue para discutirlo.  
 
-## ☕ Apoya el proyecto
+Consulta la documentación para desarrolladores para conocer la arquitectura, las reglas y el entorno de pruebas.
 
-Si esta herramienta te ahorra tiempo o hace tu flujo en Arch más seguro, considera apoyar:
-
-[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20the%20project-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/luigid5555)
-
-Tu apoyo mantiene las reglas al día, mejora docs y hace sostenibles las pruebas. ¡Muchas Gracias!
-
----
+⚠️ **Nota:** Este proyecto no cuenta con mantenimiento activo. Las contribuciones pueden ser aceptadas, pero la revisión y el proceso de integración pueden ser limitados. Se anima a la comunidad a realizar *forks* si desean expandir o continuar el desarrollo.
 
 ## Licencia
 
