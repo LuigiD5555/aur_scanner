@@ -27,7 +27,7 @@ Actualmente, el proyecto **no cuenta con mantenimiento activo**. El código se p
 
 ## 📚 Documentación
 
-- Documentación para desarrolladores: [English]([../developer/README.dev.md](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
+- Documentación para desarrolladores: [English](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
 
 ---
 
