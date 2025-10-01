@@ -4,51 +4,133 @@ set -euo pipefail
 SOURCE_BRANCH=${SOURCE_BRANCH:-development}
 TARGET_BRANCH=${TARGET_BRANCH:-beta-release}
 PROTECTED_PATHS=${PROTECTED_PATHS:-packaging/aur-scanner-git}
-COMMIT_MESSAGE=${COMMIT_MESSAGE:-"ci: sync ${SOURCE_BRANCH} into ${TARGET_BRANCH}"}
+COMMIT_MESSAGE=${COMMIT_MESSAGE:-"chore(beta): sync ${SOURCE_BRANCH} into ${TARGET_BRANCH}"}
+DEV_ONLY_PATHS_DEFAULT=$'tests\nscripts/run-tests.sh\nscripts/sync-development.sh\ndocs/developer'
+DEV_ONLY_PATHS=${DEV_ONLY_PATHS:-$DEV_ONLY_PATHS_DEFAULT}
+WORKTREE_PREFIX=${WORKTREE_PREFIX:-sync-${SOURCE_BRANCH}-into-${TARGET_BRANCH}}
 
+repo_root=$(git rev-parse --show-toplevel)
 if [[ -z ${GITHUB_WORKSPACE:-} ]]; then
   echo "[sync] Running outside GitHub Actions; ensure you are in repo root." >&2
 fi
 
-# Fetch the latest refs for both branches.
-git fetch --prune origin "$TARGET_BRANCH" "$SOURCE_BRANCH"
+cleanup() {
+  local status=$?
+  if [[ -n ${worktree_dir:-} && -d ${worktree_dir:-} ]]; then
+    git worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
+  fi
+  if [[ -n ${work_branch:-} ]]; then
+    git branch -D "$work_branch" >/dev/null 2>&1 || true
+  fi
+  if [[ -n ${protected_tmp:-} && -d ${protected_tmp:-} ]]; then
+    rm -rf "$protected_tmp"
+  fi
+  if [[ -n ${rsync_tmp:-} && -d ${rsync_tmp:-} ]]; then
+    rm -rf "$rsync_tmp"
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
 
-# If TARGET already contains SOURCE commits, skip.
-if git rev-list --count "origin/${TARGET_BRANCH}..origin/${SOURCE_BRANCH}" | grep -qx '0'; then
-  echo "[sync] ${TARGET_BRANCH} already contains ${SOURCE_BRANCH}; nothing to do." >&2
-  exit 0
-fi
-
-# Prepare a working branch based on the target branch.
-git checkout -B sync-${SOURCE_BRANCH}-into-${TARGET_BRANCH} "origin/${TARGET_BRANCH}"
-
-# Stage a merge without committing so we can adjust protected paths.
-if ! git merge --no-ff --no-commit "origin/${SOURCE_BRANCH}"; then
-  echo "[sync] Merge produced conflicts. Resolve manually." >&2
-  exit 1
-fi
-
-# Restore protected paths from the original target branch tip.
-read -r -a protected <<<"${PROTECTED_PATHS}"
-for path in "${protected[@]}"; do
-  [[ -z "$path" ]] && continue
-  if git cat-file -e "HEAD:$path" 2>/dev/null; then
-    git restore --source=HEAD --staged --worktree -- "$path"
-  elif git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
-    git restore --source=HEAD --staged --worktree -- "$path"
+map_input_to_array() {
+  local __var=$1
+  local __input=$2
+  if [[ -z "$__input" ]]; then
+    eval "$__var=()"
+    return
+  fi
+  if [[ "$__input" == *$'\n'* ]]; then
+    mapfile -t "$__var" < <(printf '%s\n' "$__input" | sed '/^$/d')
   else
-    echo "[sync] Skipping protected path '$path'; not tracked on target branch." >&2
+    read -r -a "$__var" <<<"$__input"
+  fi
+}
+
+map_input_to_array protected_paths "$PROTECTED_PATHS"
+map_input_to_array dev_only_paths "$DEV_ONLY_PATHS"
+
+if [[ ${#protected_paths[@]} -eq 0 ]]; then
+  echo "[sync] No protected paths configured." >&2
+fi
+
+git fetch --prune origin "$SOURCE_BRANCH" "$TARGET_BRANCH"
+
+if git rev-list --count "origin/${TARGET_BRANCH}..origin/${SOURCE_BRANCH}" | grep -qx '0'; then
+  echo "[sync] ${TARGET_BRANCH} already contains ${SOURCE_BRANCH}; verifying pruning only." >&2
+fi
+
+timestamp=$(date +%Y%m%d%H%M%S)
+work_branch="${WORKTREE_PREFIX}-${timestamp}"
+worktree_dir=$(mktemp -d -t "${WORKTREE_PREFIX}-${timestamp}-XXXX")
+protected_tmp=$(mktemp -d -t "protected-${TARGET_BRANCH}-${timestamp}-XXXX")
+rsync_tmp=$(mktemp -d -t "rsync-${TARGET_BRANCH}-${timestamp}-XXXX")
+
+# Prepare a local branch tracking the remote target tip.
+git branch -f "$work_branch" "origin/${TARGET_BRANCH}" >/dev/null 2>&1
+
+git worktree add "$worktree_dir" "$work_branch" >/dev/null
+
+echo "[sync] Preparing protected paths snapshot." >&2
+for path in "${protected_paths[@]}"; do
+  [[ -z "$path" ]] && continue
+  if [[ -e "$worktree_dir/$path" ]]; then
+    mkdir -p "$protected_tmp/$(dirname "$path")"
+    if [[ -d "$worktree_dir/$path" ]]; then
+      rsync -a --delete "$worktree_dir/$path/" "$protected_tmp/$path/"
+    else
+      cp -a "$worktree_dir/$path" "$protected_tmp/$path"
+    fi
+  else
+    echo "[sync] Protected path '$path' not present in target; skipping snapshot." >&2
   fi
 done
 
-# If nothing besides protected paths changed, abort the merge gracefully.
+# Mirror development tree into the worktree, excluding .git
+rsync -a --delete \
+  --exclude '.git/' \
+  "${repo_root}/" "$worktree_dir/"
+
+echo "[sync] Restoring protected paths." >&2
+for path in "${protected_paths[@]}"; do
+  [[ -z "$path" ]] && continue
+  if [[ -e "$protected_tmp/$path" ]]; then
+    rm -rf "$worktree_dir/$path"
+    mkdir -p "$worktree_dir/$(dirname "$path")"
+    if [[ -d "$protected_tmp/$path" ]]; then
+      rsync -a --delete "$protected_tmp/$path/" "$worktree_dir/$path/"
+    else
+      cp -a "$protected_tmp/$path" "$worktree_dir/$path"
+    fi
+  fi
+done
+
+pushd "$worktree_dir" >/dev/null
+
+if [[ -x .github/scripts/prepare_release_docs.py ]]; then
+  python3 .github/scripts/prepare_release_docs.py
+elif [[ -f .github/scripts/prepare_release_docs.py ]]; then
+  python3 .github/scripts/prepare_release_docs.py
+fi
+
+for path in "${dev_only_paths[@]}"; do
+  [[ -z "$path" ]] && continue
+  rm -rf -- "$path"
+  git rm -rf --cached "$path" >/dev/null 2>&1 || true
+done
+
+git add -A
+
 if git diff --cached --quiet; then
-  echo "[sync] No effective changes after protecting paths; aborting merge." >&2
-  git merge --abort
+  echo "[sync] No changes detected for ${TARGET_BRANCH}." >&2
+  popd >/dev/null
   exit 0
 fi
 
-# Commit the merge.
 git commit -m "$COMMIT_MESSAGE"
 
-echo "[sync] Merge commit prepared for ${TARGET_BRANCH}." >&2
+git push origin HEAD:"${TARGET_BRANCH}"
+
+popd >/dev/null
+
+trap - EXIT
+cleanup
