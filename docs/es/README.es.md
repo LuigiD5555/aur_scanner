@@ -27,7 +27,7 @@ Actualmente, el proyecto **no cuenta con mantenimiento activo**. El código se p
 
 ## 📚 Documentación
 
-- Documentación para desarrolladores (rama development): [English](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
+- Documentación para desarrolladores: [English]([../developer/README.dev.md](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
 
 ---
 
@@ -158,6 +158,7 @@ yay -S aur-scanner-git
 ```
 
 - Instala los archivos del wrapper en `/usr/lib/aur-scanner`.
+- Después de instalar, ejecuta `sudo /usr/lib/aur-scanner/scripts/install-scanner.sh --system` (o la variante `--user`) para enlazar los helpers.
 - El paquete está marcado como **beta**; la API y CLI aún pueden cambiar.
 
 ### Wrapper drop-in (transparente)
@@ -174,7 +175,7 @@ pamac build <aur-package>
 - En actualizaciones completas (`yay -Syu`, `paru -Syu`, `pikaur -Syu`, etc.) escanea la cola AUR y añade las fallidas a `--ignore` para que el resto continúe.
 - Si todo pasa, tu helper sigue normalmente.
 - Para omitir una vez, puedes poner: `SCAN_BYPASS=1` (no recomendado).
-- Banderas como `--verify-only`, `--strict` o `--fast` solo se reconocen **cuando el nombre del helper apunta al wrapper**. Para instalaciones manuales crea tú mismo el enlace simbólico (`ln -sf /ruta/al/repo/bin/scan ~/.local/bin/yay`).
+- Banderas como `--verify-only`, `--strict` o `--fast` solo se reconocen **cuando el nombre del helper apunta al wrapper**. `scripts/install-scanner.sh` ya crea los shims necesarios; para instalaciones manuales puedes crearlo tú mismo (`ln -sf /ruta/al/repo/bin/scan ~/.local/bin/yay`).
 - Para chequeos del parser sin descargas, ejecuta mediante el wrapper con `FAST=1 --verify-only` (o `FAST=1 VERIFY_ONLY=1`).
 - Los shims de helper detectan automáticamente las banderas del wrapper: si escribes `yay … --verify-only`, el shim entrega el control a `scan`; de lo contrario delega directo al helper real.
 - ¿No sabes en qué modo estás? Ejecuta `command -v yay` y luego `readlink -f "$(command -v yay)"`. Si ambos apuntan al wrapper (`…/scan`), puedes usar `yay -Syu pkg --verify-only`; si muestran `/usr/bin/yay`, llama explícitamente `scan yay -Syu --verify-only pkg` (o crea el shim).
