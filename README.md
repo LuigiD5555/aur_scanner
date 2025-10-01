@@ -21,14 +21,13 @@ At present, the project is **no longer actively maintained**. The code is releas
 
 ---
 
-🌐 Lea esto en [Español](README.es.md)
+🌐 Lea esto en [Español](./docs/es/README.es.md)
 
 ---
 
 ## 📚 Documentation
 
-- Docs index: [Index](INDEX.md)
-- Developer docs: [English](docs/developer/README.dev.md) | [Español](docs/developer/README.dev.es.md)
+- Developer docs: [English]([docs/developer/README.dev.md](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.md) | [Español]([docs/developer/README.dev.es.md](https://github.com/LuigiD5555/aur_scanner/blob/development/docs/developer/README.dev.es.md)
 
 ---
 
