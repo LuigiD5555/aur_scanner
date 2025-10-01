@@ -34,7 +34,7 @@ This document is intended for **contributors and maintainers**. It explains how 
     - [Guard Wrapper](#guard-wrapper)
       - [Sequence — scan Delegation](#sequence--scan-delegation)
   - [Node PKGB Parser (Optional)](#node-pkgb-parser-optional)
-      - [Parser internals](#parser-internals)
+    - [Parser internals](#parser-internals)
   - [Runtime](#runtime)
     - [Requirements](#requirements)
     - [Installation Methods](#installation-methods)
@@ -53,13 +53,13 @@ This document is intended for **contributors and maintainers**. It explains how 
     - [Adding Rules](#adding-rules)
     - [CI Recipes](#ci-recipes)
   - [Node Parser Integration (`bin/pkgb-parse`)](#node-parser-integration-binpkgb-parse)
-      - [Node CLI Quick Reference](#node-cli-quick-reference)
+    - [Node CLI Quick Reference](#node-cli-quick-reference)
   - [Auditing and Optimization](#auditing-and-optimization)
   - [Troubleshooting](#troubleshooting)
   - [🤝 Contributing](#-contributing)
     - [Ways to contribute](#ways-to-contribute)
+    - [Contribution guidelines](#contribution-guidelines)
     - [Development setup (local)](#development-setup-local)
-- [Verify a package directly](#verify-a-package-directly)
     - [Guidelines](#guidelines)
   - [Versioning and Changelog](#versioning-and-changelog)
 
@@ -338,7 +338,6 @@ sequenceDiagram
     Runner->>Report: report_print(overall)
 ```
 
-
 ### PKGBUILD Helpers
 
 PKGBUILD helpers live under `lib/pkgb/*.sh`. They implement reusable functionality for rules.
@@ -399,13 +398,13 @@ The guard wrapper is implemented in `bin/scan`. Its purpose is to intercept comm
 
 - **`lib/guard/helpers.list`**: enumerates known helper names and types (pacman-compatible vs pamac).
 - **Delegation logic**:
-	- Detect AUR targets in the arguments.
-	- Call `bin/aur-verify --verify-only` on them.
-	- If any FAIL: abort or add to `--ignore`.
-	- If all OK: delegate to the real helper.
+  - Detect AUR targets in the arguments.
+  - Call `bin/aur-verify --verify-only` on them.
+  - If any FAIL: abort or add to `--ignore`.
+  - If all OK: delegate to the real helper.
 - **Bypass knobs**:
-	- `SCAN_BYPASS=1`: skip verification once.
-	- `SCAN_REAL_YAY=/usr/bin/yay`: point to real helper binary.
+  - `SCAN_BYPASS=1`: skip verification once.
+  - `SCAN_REAL_YAY=/usr/bin/yay`: point to real helper binary.
 - **Upgrade flow**: for full upgrades, failing AUR packages are passed in `--ignore`.
 
 #### Sequence — scan Delegation
@@ -445,7 +444,7 @@ The Node-based PKGB parser lives under `lib/pkgb/parser/`. It is optional and on
 
 Purpose: provide richer diagnostics (`--summary`, `--sources-compact`, `--redflags-lines`, `--signals`). Enforcement remains in Bash.
 
-#### Parser internals
+### Parser internals
 
 ```mermaid
 %%{init: {"theme": "forest", "handDrawn": true}}%%
@@ -480,59 +479,64 @@ sequenceDiagram
 ### Installation Methods
 
 1. **From AUR package** (`aur-scanner-git`):
-```
-yay -S aur-scanner-git
-```
 
-Installs runtime in `/usr/lib/aur-scanner` and exposes `scan`.
+  ```bash
+  yay -S aur-scanner-git
+  ```
+  
+  Installs runtime in `/usr/lib/aur-scanner` and exposes `scan`.
 
-1. **Via installer script**:
-```
-# User install (default)
-./scripts/install-scanner.sh --user
+2. **Via installer script**:
 
-# System-wide install
-sudo ./scripts/install-scanner.sh --system
-```
+  ```bash
+  # User install (default)
+  ./scripts/install-scanner.sh --user
 
-Creates symlinks for `scan` and helpers (`yay/paru/pikaur/trizen/pamac`).
+  # System-wide install
+  sudo ./scripts/install-scanner.sh --system
+  ```
 
-**Uninstall:**
+  Creates symlinks for `scan` and helpers (`yay/paru/pikaur/trizen/pamac`).
 
-```
-./scripts/uninstall-scanner.sh --user
-sudo ./scripts/uninstall-scanner.sh --system
-```
+  **Uninstall:**
 
-**Validate sources after refactors:**
+  ```bash
+  ./scripts/uninstall-scanner.sh --user
+  sudo ./scripts/uninstall-scanner.sh --system
+  ```
 
-```
-./scripts/validate-sources.sh
-```
-1. **Manual makepkg build**:
-```
-cd packaging/aur-scanner-git
-makepkg -Ccsf --install
-```
+  **Validate sources after refactors:**
 
-Override source for local testing:
+  ```bash
+  ./scripts/validate-sources.sh
+  ```
 
-```
-AUR_SCANNER_SRC_OVERRIDE="git+file://$PWD/../.." makepkg -Ccsf --install
-```
-1. **Cleanup after testing**
+3. **Manual makepkg build**:
 
-When testing locally, clean up to avoid side effects:
+  ```bash
+  cd packaging/aur-scanner-git
+  makepkg -Ccsf --install
+  ```
 
-```
-rm -rf /tmp/aur-plain-cache/*
-cd packaging/aur-scanner-git
-rm -rf src/ pkg/ *.tar.gz *.tar.zst
-rm -f ~/.local/bin/scan
-rm -f ~/.local/bin/{yay,paru,pikaur,trizen,pamac}
-```
+  Override source for local testing:
 
-Or simply run the uninstall script.
+  ```bash
+  AUR_SCANNER_SRC_OVERRIDE="git+file://$PWD/../.." makepkg -Ccsf --install
+  ```
+
+4. **Cleanup after testing**
+
+  When testing locally, clean up to avoid side effects:
+
+  ```bash
+  rm -rf /tmp/aur-plain-cache/*
+  cd packaging/aur-scanner-git
+  rm -rf src/ pkg/ *.tar.gz *.tar.zst
+  rm -f ~/.local/bin/scan
+  rm -f ~/.local/bin/{yay,paru,pikaur,trizen,pamac}
+  ```
+
+  Or simply run the uninstall script.
 
 ---
 
@@ -551,7 +555,6 @@ Or simply run the uninstall script.
 > **Precedence:** `FAST=1` disables deep verification even if `DEEP=1`.  
 > **Wrapper note:** `VERIFY_ONLY=1` prevents delegation to helpers when invoked via `scan`.
 
-
 #### Behavior Matrix
 
 | Mode / Flag                   | Run `verifysource`        | Auto-rewrite checksums        | Stop early on FAIL        | Install after verify |
@@ -564,7 +567,6 @@ Or simply run the uninstall script.
 
 > **Rationale:** `FAST` prioritizes speed (no downloads, no deep checks). `STRICT` disables checksum rewrites and escalates warnings to failures. `VERIFY_ONLY` never installs.
 
-
 ---
 
 ### Logging and i18n
@@ -572,8 +574,9 @@ Or simply run the uninstall script.
 - **Verbose** mode (`--verbose`): print function summaries (`prepare()`, `build()`, `package()`), compact source lists, all checksum arrays, and red-flag diagnostic lines.
 - **Quiet** mode (`--quiet`): suppress info/warn logs, but summary and errors remain visible.
 - **Internationalization**:
-	- Default language detected from `$LANG`.
-	- Override with `REPORT_LANG=en|es`.
+
+  - Default language detected from `$LANG`.
+  - Override with `REPORT_LANG=en|es`.
 
 ---
 
@@ -605,6 +608,7 @@ flowchart TD
     Verify -->|Any FAIL| Abort[Abort delegation]
     Verify -->|All OK| Delegate[Exec real helper with original args]
 ```
+
 - Intercepts common helpers.
 - For upgrades, failing AUR packages are added to `--ignore`.
 - `SCAN_BYPASS=1`: bypass verification once.
@@ -621,29 +625,33 @@ Security guarantees are central:
 - **No build occurs** during verification.
 - Deep checks use only `makepkg --verifysource`.
 - **STRICT** mode:
-	- Blocks weak checksums.
-	- Requires HTTPS sources.
-	- Requires pinned VCS commits.
+
+  - Blocks weak checksums.
+  - Requires HTTPS sources.
+  - Requires pinned VCS commits.
 - **FAST** mode:
-	- Skips downloads.
-	- Useful for quick feedback.
+  - Skips downloads.
+  - Useful for quick feedback.
 - **Red flags**:
-	- Diagnostic only by default.
-	- Elevated to FAIL under strict.
+  - Diagnostic only by default.
+  - Elevated to FAIL under strict.
 
 ### Threat Model (Summary)
 
 **Covered:**
+
 - HTTPS enforcement + domain allowlist.
 - VCS pinning (commit/tag required).
 - Strong checksum policy; weak/missing sums are blocked under `--strict`.
 - No `build()` execution during verification; only `makepkg --verifysource`.
 
 **Not covered (by design):**
+
 - Malicious sources that still match checksums (manual code review required).
 - Intentional bypass via debug toggles or executing outside the wrapper.
 
 **Recommendations:**
+
 - In production/CI, use `--strict`; in pipelines, pair with `--verify-only`.
 - Do not treat checksum rewrites as trust signals.
 - Keep the allowlist change-controlled via PRs and review.
@@ -665,7 +673,7 @@ flowchart TD
 
 ### Quick Start
 
-```
+```bash
 # Verify a package locally
 sh ./bin/aur-verify --verify-only <pkg>
 
@@ -675,11 +683,12 @@ STRICT=1 DEEP=1 sh ./bin/aur-verify <pkg>
 
 ### Running Tests
 
-```
+```bash
 ./scripts/run-tests.sh        # orchestrates all tests
 bats tests                    # Bash tests
 node --test tests/js          # Node tests
 ```
+
 - **Bats tests**: resolution, guard, installers, packaging, rules, scan wrapper, validate\_sources.
 - **Node tests**: CLI (`cli.test.mjs`) and parser (`parser.test.mjs`).
 
@@ -701,7 +710,7 @@ node --test tests/js          # Node tests
 
 Example GitHub Actions workflow for CI:
 
-```
+```yaml
 name: CI
 
 on:
@@ -739,16 +748,17 @@ jobs:
 The Node parser provides extended diagnostics but is not required for enforcement.
 
 - **Outputs consumed by Bash CLI**:
-	- `--summary`
-	- `--sources-compact`
-	- `--redflags-lines`
+
+  - `--summary`
+  - `--sources-compact`
+  - `--redflags-lines`
 - **Other developer-oriented flags**:
-	- `--json`
-	- `--signals`
+  - `--json`
+  - `--signals`
 
-#### Node CLI Quick Reference
+### Node CLI Quick Reference
 
-```
+```bash
 # From local file
 node bin/pkgb-parse --file ./PKGBUILD --summary
 node bin/pkgb-parse --file ./PKGBUILD --json
@@ -774,10 +784,11 @@ node bin/pkgb-parse --file ./PKGBUILD --sources-compact --limit 10
 - **Network**: Fallbacks to IPv4 if necessary (`AUR_FORCE_IPV4=1`).
 - **Optimization**: avoid heavy downloads unless `--deep` is explicitly requested.
 - **Auditing invariants**:
-	- No build steps, only verification.
-	- Network only touches AUR and declared sources.
-	- Auto-checksum rewrite happens only in non-strict and non-fast modes.
-	- If any rule fails, installation is blocked.
+
+  - No build steps, only verification.
+  - Network only touches AUR and declared sources.
+  - Auto-checksum rewrite happens only in non-strict and non-fast modes.
+  - If any rule fails, installation is blocked.
 
 ---
 
@@ -786,14 +797,14 @@ node bin/pkgb-parse --file ./PKGBUILD --sources-compact --limit 10
 Common issues and resolutions:
 
 - **`sha256sums do not match` after rewrite**:  
-	Ensure you are not in `STRICT=1`. Auto-rewrite only works in relaxed modes.
+  Ensure you are not in `STRICT=1`. Auto-rewrite only works in relaxed modes.
 - **Node parser errors**:  
-	Make sure Node.js ≥ 18 is installed. If not, Bash stubs will silently replace it.
+  Make sure Node.js ≥ 18 is installed. If not, Bash stubs will silently replace it.
 - **Network fetch failures**:  
-	Use `AUR_FORCE_IPV4=1` in IPv6-only setups.
+  Use `AUR_FORCE_IPV4=1` in IPv6-only setups.
 - **Wrapper fails with helper not found**:  
-	Ensure real helper (`yay`, `paru`, etc.) is installed.  
-	Override path with `SCAN_REAL_YAY=/usr/bin/yay`.
+  Ensure real helper (`yay`, `paru`, etc.) is installed.  
+  Override path with `SCAN_REAL_YAY=/usr/bin/yay`.
 
 ---
 
@@ -804,39 +815,55 @@ We welcome contributions of all kinds — code, documentation, tests, bug report
 ### Ways to contribute
 
 - 🪳 **Report issues** with a minimal repro, your Arch variant, and the exact command you ran.
-- 🧪 **Test different modes** (\`STRICT=1\`, \`FAST=1\`, \`DEEP=1\`) on a variety of AUR packages and share results.
+- 🧪 **Test different modes** (`STRICT=1`, `FAST=1`, `DEEP=1`) on a variety of AUR packages and share results.
 - 📝 **Improve documentation** (clarify flags, add examples, ensure Spanish/English parity).
 - 🧩 **Suggest or refine rules** (new red flags, domain allowlist entries, checksum policies).
+
+### Contribution guidelines
+
+- Follow existing code style and commit message conventions.
+- Ensure new features or rules include appropriate test coverage.
+- For major changes, please open an issue first to discuss your proposal.
 
 ### Development setup (local)
 
 You can develop and test locally in several ways:
 
 1. **Run directly from source** (fastest for contributors):
-   ```bash
+  
+  ```bash
    git clone https://github.com/<your-username>/aur_scanner.git
    cd aur_scanner
 
    # Verify a package directly
    sh ./bin/aur-verify --verify-only hello
    STRICT=1 DEEP=1 sh ./bin/aur-verify hello
-	```
+  ```
+
 2. **Installation via script** (developer-only):
-	```bash
-	./scripts/install-scanner.sh --user
-	# later remove with
-	./scripts/uninstall-scanner.sh --user
-	```
+
+  ```bash
+  ./scripts/install-scanner.sh --user
+  # later remove with
+  ./scripts/uninstall-scanner.sh --user
+  ```
+
 3. **Build & install with makepkg** (simulate yay workflow):
-	```
-	cd packaging/aur-scanner-git
-	makepkg -Ccsf --install
-	```
-	This lets you validate how packaging behaves before publishing to AUR.
+
+  ```bash
+  cd packaging/aur-scanner-git
+  makepkg -Ccsf --install
+  ```
+
+  This lets you validate how packaging behaves before publishing to AUR.
+
 4. **Run the test suite**:
-	```
-	./scripts/run-tests.sh
-	```
+
+  ```bash
+  ./scripts/run-tests.sh
+  ```
+
+⚠️ Note: Active maintenance of this project is limited. Contributions are welcome, but review and merge activity may be delayed. Forks are encouraged.
 
 ### Guidelines
 
