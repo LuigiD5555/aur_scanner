@@ -29,12 +29,3 @@ jobs:
           TARGET_BRANCH: beta-release
           PROTECTED_PATHS: "packaging/aur-scanner-git"
         run: scripts/sync-development.sh
-      - name: Push updated target branch
-        env:
-          TARGET_BRANCH: beta-release
-        run: |
-          if git rev-list --count origin/${TARGET_BRANCH}..HEAD | grep -qx '0'; then
-            echo "No changes to push.";
-          else
-            git push origin HEAD:${TARGET_BRANCH}
-          fi
