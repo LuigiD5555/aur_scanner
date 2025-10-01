@@ -87,6 +87,7 @@ done
 
 # Mirror development tree into the worktree, excluding .git
 rsync -a --delete \
+  --exclude '.git' \
   --exclude '.git/' \
   "${repo_root}/" "$worktree_dir/"
 
