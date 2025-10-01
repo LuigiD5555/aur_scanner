@@ -34,15 +34,10 @@ Este documento está destinado a **colaboradores y mantenedores**. Explica cómo
     - [Wrapper Guard](#wrapper-guard)
       - [Secuencia — Delegación de scan](#secuencia--delegación-de-scan)
   - [Parser PKGB en Node (Opcional)](#parser-pkgb-en-node-opcional)
-      - [Internos del Parser](#internos-del-parser)
+    - [Internos del Parser](#internos-del-parser)
   - [Ejecución](#ejecución)
     - [Requisitos](#requisitos)
     - [Métodos de Instalación](#métodos-de-instalación)
-    - [Flags y Variables de Entorno](#flags-y-variables-de-entorno)
-      - [Matriz de Comportamiento](#matriz-de-comportamiento)
-    - [Logs e i18n](#logs-e-i18n)
-    - [Códigos de Salida](#códigos-de-salida)
-    - [Integración con Wrapper (scan)](#integración-con-wrapper-scan)
   - [Modelo de Seguridad](#modelo-de-seguridad)
     - [Modelo de Amenazas](#modelo-de-amenazas)
     - [Secuencia — Modos de Verificación Profunda](#secuencia--modos-de-verificación-profunda)
@@ -53,16 +48,15 @@ Este documento está destinado a **colaboradores y mantenedores**. Explica cómo
     - [Agregar Reglas](#agregar-reglas)
     - [Recetas CI](#recetas-ci)
   - [Integración con Parser Node (`bin/pkgb-parse`)](#integración-con-parser-node-binpkgb-parse)
-      - [Referencia Rápida CLI Node](#referencia-rápida-cli-node)
+    - [Referencia Rápida CLI Node](#referencia-rápida-cli-node)
   - [Auditoría y Optimización](#auditoría-y-optimización)
   - [Solución de Problemas](#solución-de-problemas)
   - [🤝 Contribuciones](#-contribuciones)
-    - [Formas de Contribuir](#formas-de-contribuir)
-    - [Configuración de Desarrollo (local)](#configuración-de-desarrollo-local)
+    - [Formas de contribuir](#formas-de-contribuir)
+    - [Lineamientos de contribución](#lineamientos-de-contribución)
+    - [Entorno de desarrollo (local)](#entorno-de-desarrollo-local)
     - [Guías](#guías)
   - [Versionado y Changelog](#versionado-y-changelog)
-
-
 
 ---
 
@@ -395,6 +389,7 @@ Flags y comportamiento:
 - `REPORT_LANG=en|es` sobrescribe la detección automática desde `$LANG`.
 - Verbose (`--verbose`) imprime arrays completos, listas de fuentes compactas y líneas de red flags diagnósticas.
 - Quiet (`--quiet`) suprime logs info/warn pero mantiene resumen y errores.
+
 ```mermaid
 %%{init: {"theme": "forest", "handDrawn": true}}%%
 flowchart TD
@@ -440,6 +435,7 @@ sequenceDiagram
         Helper-->>Usuario: salida normal
     end
 ```
+
 ---
 
 ## Parser PKGB en Node (Opcional)
@@ -459,7 +455,7 @@ El parser PKGB basado en Node vive en `lib/pkgb/parser/`. Es opcional y solo se 
 
 ---
 
-#### Internos del Parser
+### Internos del Parser
 
 ```mermaid
 %%{init: {"theme": "forest", "handDrawn": true}}%%
@@ -498,44 +494,58 @@ sequenceDiagram
 ### Métodos de Instalación
 
 1. **Desde AUR** (`aur-scanner-git`):
-	```
+
+	```bash
 	yay -S aur-scanner-git
 	```
-	Instala el runtime en `/usr/lib/aur-scanner` y expone `scan`.
+	
+  Instala el runtime en `/usr/lib/aur-scanner` y expone `scan`.
+
 2. **Vía script instalador**:
-	```
+
+	```bash
 	# Instalación en usuario (por defecto)
 	./scripts/install-scanner.sh --user
 	# Instalación global
 	sudo ./scripts/install-scanner.sh --system
 	```
+
 	Crea symlinks para `scan` y helpers (`yay/paru/pikaur/trizen/pamac`).
 	**Desinstalar:**
-	```
+
+	```bash
 	./scripts/uninstall-scanner.sh --user
 	sudo ./scripts/uninstall-scanner.sh --system
 	```
-	**Validar fuentes después de refactors:**
-	```
+	
+  **Validar fuentes después de refactors:**
+	```bash
 	./scripts/validate-sources.sh
 	```
+
 3. **Build manual con makepkg**:
-	```
+
+	```bash
 	cd packaging/aur-scanner-git
 	makepkg -Ccsf --install
 	```
+
 	Override de fuente para pruebas locales:
-	```
+	
+  ```bash
 	AUR_SCANNER_SRC_OVERRIDE="git+file://$PWD/../.." makepkg -Ccsf --install
 	```
+
 4. **Limpieza tras pruebas**:
-	```
+
+	```bash
 	rm -rf /tmp/aur-plain-cache/*
 	cd packaging/aur-scanner-git
 	rm -rf src/ pkg/ *.tar.gz *.tar.zst
 	rm -f ~/.local/bin/scan
 	rm -f ~/.local/bin/{yay,paru,pikaur,trizen,pamac}
 	```
+  
 	O simplemente ejecutar el script de desinstalación.
 
 ---
@@ -600,7 +610,7 @@ sequenceDiagram
 
 El wrapper `bin/scan` se coloca delante de helpers como `yay`, `paru`, etc.
 
-```
+```mermaid
 %%{init: {"theme": "forest", "handDrawn": true}}%%
 flowchart TD
     UserCmd[Comando del usuario helper] --> Guard[bin/scan]
@@ -609,6 +619,7 @@ flowchart TD
     Verify -->|Algún FAIL| Abort[Abortar delegación]
     Verify -->|Todos OK| Delegate[Ejecutar helper real con args originales]
 ```
+
 - Intercepta helpers comunes.
 - En upgrades, los paquetes AUR fallidos se pasan a `--ignore`.
 - `SCAN_BYPASS=1`: omitir verificación una vez.
@@ -625,6 +636,7 @@ Las garantías de seguridad son centrales:
 - **No se ejecuta build** durante la verificación.
 - Las verificaciones profundas usan solo `makepkg --verifysource`.
 - **STRICT** mode:
+
 	- Bloquea checksums débiles.
 	- Requiere fuentes HTTPS.
 	- Requiere commits de VCS fijados.
@@ -661,7 +673,7 @@ Las garantías de seguridad son centrales:
 
 ### Secuencia — Modos de Verificación Profunda
 
-```
+```mermaid
 %%{init: {"theme": "forest", "handDrawn": true}}%%
 flowchart TD
     Mode{Modo} -->|FAST| Skip[Omitir verifysource]
@@ -676,7 +688,7 @@ flowchart TD
 
 ### Inicio Rápido
 
-```
+```bash
 # Verificar un paquete localmente
 sh ./bin/aur-verify --verify-only <pkg>
 
@@ -688,11 +700,12 @@ STRICT=1 DEEP=1 sh ./bin/aur-verify <pkg>
 
 ### Ejecución de Pruebas
 
-```
+```bash
 ./scripts/run-tests.sh        # orquesta todas las pruebas
 bats tests                    # pruebas Bash
 node --test tests/js          # pruebas Node
 ```
+
 - **Pruebas Bats**: resolución, guard, instaladores, empaquetado, reglas, scan wrapper, validate\_sources.
 - **Pruebas Node**: CLI (`cli.test.mjs`) y parser (`parser.test.mjs`).
 
@@ -720,7 +733,7 @@ node --test tests/js          # pruebas Node
 
 Ejemplo de workflow GitHub Actions para CI:
 
-```
+```yaml
 name: CI
 
 on:
@@ -758,6 +771,7 @@ jobs:
 El parser en Node provee diagnósticos extendidos, pero **no es requerido** para la aplicación de reglas.
 
 - **Outputs consumidos por el CLI en Bash**:
+
 	- `--summary`
 	- `--sources-compact`
 	- `--redflags-lines`
@@ -767,9 +781,9 @@ El parser en Node provee diagnósticos extendidos, pero **no es requerido** para
 
 ---
 
-#### Referencia Rápida CLI Node
+### Referencia Rápida CLI Node
 
-```
+```bash
 # Desde archivo local
 node bin/pkgb-parse --file ./PKGBUILD --summary
 node bin/pkgb-parse --file ./PKGBUILD --json
@@ -795,6 +809,7 @@ node bin/pkgb-parse --file ./PKGBUILD --sources-compact --limit 10
 - **Red**: fallback a IPv4 si es necesario (`AUR_FORCE_IPV4=1`).
 - **Optimización**: se evitan descargas pesadas salvo que se solicite explícitamente `--deep`.
 - **Invariantes de auditoría**:
+
 	- No se ejecutan pasos de build, solo verificación.
 	- La red solo toca AUR y fuentes declaradas.
 	- Reescritura de checksums ocurre solo en modos no estrictos y no rápidos.
@@ -820,43 +835,59 @@ Problemas comunes y soluciones:
 
 ## 🤝 Contribuciones
 
-Se aceptan contribuciones de todo tipo: código, documentación, pruebas, reportes de bugs, propuestas de reglas.
+Damos la bienvenida a todo tipo de contribuciones: código, documentación, pruebas, reportes de errores y propuestas de reglas.
 
-### Formas de Contribuir
+### Formas de contribuir
 
-- 🪳 **Reportar issues** con repro mínimo, tu variante de Arch y el comando exacto que corriste.
-- 🧪 **Probar diferentes modos** (`STRICT=1`, `FAST=1`, `DEEP=1`) en una variedad de paquetes AUR y compartir resultados.
-- 📝 **Mejorar documentación** (clarificar flags, añadir ejemplos, asegurar paridad ES/EN).
-- 🧩 **Proponer o refinar reglas** (nuevos red flags, dominios en la allowlist, políticas de checksums).
+- 🪳 **Reportar problemas** incluyendo un caso mínimo reproducible, la variante de Arch que uses y el comando exacto que ejecutaste.  
+- 🧪 **Probar diferentes modos** (`STRICT=1`, `FAST=1`, `DEEP=1`) en una variedad de paquetes AUR y compartir los resultados.  
+- 📝 **Mejorar la documentación** (aclarar flags, añadir ejemplos, asegurar paridad entre español/inglés).  
+- 🧩 **Sugerir o refinar reglas** (nuevas alertas, entradas de lista blanca de dominios, políticas de checksums).  
 
-### Configuración de Desarrollo (local)
+### Lineamientos de contribución
 
-Puedes desarrollar y probar localmente de varias formas:
+- Sigue el estilo de código y las convenciones de commits ya existentes.  
+- Asegúrate de que las nuevas funciones o reglas incluyan la cobertura de pruebas correspondiente.  
+- Si planeas un cambio mayor, abre primero un *issue* para discutir tu propuesta.  
 
-1. **Ejecutar directamente desde el código fuente** (lo más rápido para contribuidores):
-	```
-	git clone https://github.com/<your-username>/aur_scanner.git
-	cd aur_scanner
-	# Verificar un paquete directamente
-	sh ./bin/aur-verify --verify-only hello
-	STRICT=1 DEEP=1 sh ./bin/aur-verify hello
-	```
-2. **Simular instalación vía script** (solo para desarrollo):
-	```
+### Entorno de desarrollo (local)
+
+Puedes desarrollar y probar de forma local de varias maneras:
+
+1. **Ejecutar directamente desde el código fuente** (la forma más rápida para colaboradores):  
+  ```bash
+   git clone https://github.com/<tu-usuario>/aur_scanner.git
+   cd aur_scanner
+
+   # Verificar un paquete directamente
+   sh ./bin/aur-verify --verify-only hello
+   STRICT=1 DEEP=1 sh ./bin/aur-verify hello
+  ```
+
+2. **Instalación mediante script** (solo para desarrollo):
+
+```bash
 	./scripts/install-scanner.sh --user
-	# luego desinstalar con
+	# desinstalar más tarde con
 	./scripts/uninstall-scanner.sh --user
-	```
-3. **Build & install con makepkg** (simula el flujo de yay):
-	```
+```
+
+3. **Compilar e instalar con makepkg** (simular flujo de trabajo de yay):
+
+	```bash
 	cd packaging/aur-scanner-git
 	makepkg -Ccsf --install
 	```
-	Esto te permite validar cómo se comporta el empaquetado antes de publicar en AUR.
-4. **Correr el test suite**:
-	```
+
+	Esto permite validar cómo se comporta el empaquetado antes de publicarlo en AUR.
+
+4. **Ejecutar el conjunto de pruebas**:
+
+	```bash
 	./scripts/run-tests.sh
 	```
+
+⚠️ **Nota:** El mantenimiento activo de este proyecto es limitado. Las contribuciones son bienvenidas, pero la revisión e integración pueden tardar. Se anima a la comunidad a realizar *forks* si desean expandir o continuar el desarrollo.
 
 ### Guías
 
