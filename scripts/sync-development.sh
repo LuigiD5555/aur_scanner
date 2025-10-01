@@ -139,7 +139,8 @@ if [[ "$latest_target_commit" != "$BASE_TARGET_COMMIT" ]]; then
   exit 1
 fi
 
-git push origin HEAD:"${TARGET_BRANCH}"
+git push --force-with-lease=refs/heads/${TARGET_BRANCH}:${BASE_TARGET_COMMIT} \
+  origin HEAD:"${TARGET_BRANCH}"
 
 popd >/dev/null
 
