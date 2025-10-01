@@ -54,6 +54,7 @@ if [[ ${#protected_paths[@]} -eq 0 ]]; then
 fi
 
 git fetch --prune origin "$SOURCE_BRANCH" "$TARGET_BRANCH"
+BASE_TARGET_COMMIT=$(git rev-parse "origin/${TARGET_BRANCH}")
 
 if git rev-list --count "origin/${TARGET_BRANCH}..origin/${SOURCE_BRANCH}" | grep -qx '0'; then
   echo "[sync] ${TARGET_BRANCH} already contains ${SOURCE_BRANCH}; verifying pruning only." >&2
@@ -63,7 +64,6 @@ timestamp=$(date +%Y%m%d%H%M%S)
 work_branch="${WORKTREE_PREFIX}-${timestamp}"
 worktree_dir=$(mktemp -d -t "${WORKTREE_PREFIX}-${timestamp}-XXXX")
 protected_tmp=$(mktemp -d -t "protected-${TARGET_BRANCH}-${timestamp}-XXXX")
-rsync_tmp=$(mktemp -d -t "rsync-${TARGET_BRANCH}-${timestamp}-XXXX")
 
 # Prepare a local branch tracking the remote target tip.
 git branch -f "$work_branch" "origin/${TARGET_BRANCH}" >/dev/null 2>&1
@@ -128,6 +128,16 @@ if git diff --cached --quiet; then
 fi
 
 git commit -m "$COMMIT_MESSAGE"
+
+# Double-check remote tip to avoid non-fast-forward errors mid-run.
+git fetch --quiet origin "${TARGET_BRANCH}"
+latest_target_commit=$(git rev-parse "origin/${TARGET_BRANCH}")
+
+if [[ "$latest_target_commit" != "$BASE_TARGET_COMMIT" ]]; then
+  echo "[sync] Remote ${TARGET_BRANCH} advanced (${BASE_TARGET_COMMIT} -> ${latest_target_commit}); aborting push." >&2
+  echo "[sync] Re-run the sync to include the new commits." >&2
+  exit 1
+fi
 
 git push origin HEAD:"${TARGET_BRANCH}"
 
