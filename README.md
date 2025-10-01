@@ -9,7 +9,15 @@
 [![PGP](https://img.shields.io/badge/PGP-verification-informational?logo=gnupg&logoColor=white)](https://gnupg.org/)
 [![sha256](https://img.shields.io/badge/checksums-sha256-success)](https://en.wikipedia.org/wiki/SHA-2)
 [![yay](https://img.shields.io/badge/helper-yay-0A0A0A)](https://github.com/Jguer/yay)
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/luigid5555)
+
+---
+
+## Project status
+
+This project was created as a **proof of concept** in response to the **September 2025 attacks** targeting **AUR community packages** in Arch Linux.  
+Its initial purpose was to **explore auditing and verification tools** that could contribute to the security of users within this ecosystem.  
+
+At present, the project is **no longer actively maintained**. The code is released under an open-source license for educational and research purposes, and remains available for anyone interested in studying it, reusing it, or continuing its development through a fork.  
 
 ---
 
@@ -397,20 +405,15 @@ More scenarios and logs: see the developer docs.
 ## 🤝 Contributing
 
 Contributions are welcome—code, docs, tests, and rule proposals.
-Good first issues: documentation tweaks, clearer error messages, extra tests.
+
+- **Good first issues:** documentation tweaks, clearer error messages, extra tests.
+- Please follow the existing coding style and conventions.
+- Make sure new features or rules include corresponding tests.
+- If you plan a major change, open an issue first to discuss it.
+
 See the developer docs for architecture, rules, and test harness.
 
----
-
-## ☕ Support the project
-
-If this tool saves you time or makes your Arch workflow safer, consider supporting:
-
-[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20the%20project-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/luigid5555)
-
-Your support keeps rules up‑to‑date, docs improving, and testing sustainable. Thank you!
-
----
+⚠️ **Note:** This project is not under active maintenance. Contributions are accepted, but review and merge activity may be limited. Forks are encouraged if you want to expand the project further.
 
 ## License
 
