@@ -25,9 +25,6 @@ cleanup() {
   if [[ -n ${protected_tmp:-} && -d ${protected_tmp:-} ]]; then
     rm -rf "$protected_tmp"
   fi
-  if [[ -n ${rsync_tmp:-} && -d ${rsync_tmp:-} ]]; then
-    rm -rf "$rsync_tmp"
-  fi
   exit "$status"
 }
 trap cleanup EXIT
@@ -55,6 +52,7 @@ fi
 
 git fetch --prune origin "$SOURCE_BRANCH" "$TARGET_BRANCH"
 BASE_TARGET_COMMIT=$(git rev-parse "origin/${TARGET_BRANCH}")
+SOURCE_COMMITS=$(git log --oneline "${BASE_TARGET_COMMIT}..origin/${SOURCE_BRANCH}" || true)
 
 if git rev-list --count "origin/${TARGET_BRANCH}..origin/${SOURCE_BRANCH}" | grep -qx '0'; then
   echo "[sync] ${TARGET_BRANCH} already contains ${SOURCE_BRANCH}; verifying pruning only." >&2
@@ -121,7 +119,12 @@ if git diff --cached --quiet; then
   exit 0
 fi
 
-git commit -m "$COMMIT_MESSAGE"
+if [[ -n ${SOURCE_COMMITS} ]]; then
+  commit_body=$(printf 'Synced commits:\n%s\n' "${SOURCE_COMMITS}")
+  git commit -m "$COMMIT_MESSAGE" -m "$commit_body"
+else
+  git commit -m "$COMMIT_MESSAGE"
+fi
 
 # Double-check remote tip to avoid non-fast-forward errors mid-run.
 git fetch --quiet origin "${TARGET_BRANCH}"
