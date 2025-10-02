@@ -120,7 +120,14 @@ if git diff --cached --quiet; then
 fi
 
 if [[ -n ${SOURCE_COMMITS} ]]; then
-  commit_body=$(printf 'Synced commits:\n%s\n' "${SOURCE_COMMITS}")
+  formatted_commits=""
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    formatted_commits+=$'- '
+    formatted_commits+="$line"
+    formatted_commits+=$'\n'
+  done <<<"${SOURCE_COMMITS}"
+  commit_body=$(printf 'Synced commits:\n%s' "${formatted_commits}")
   git commit -m "$COMMIT_MESSAGE" -m "$commit_body"
 else
   git commit -m "$COMMIT_MESSAGE"
