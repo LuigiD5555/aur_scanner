@@ -107,12 +107,6 @@ done
 
 pushd "$worktree_dir" >/dev/null
 
-if [[ -x .github/scripts/prepare_release_docs.py ]]; then
-  python3 .github/scripts/prepare_release_docs.py
-elif [[ -f .github/scripts/prepare_release_docs.py ]]; then
-  python3 .github/scripts/prepare_release_docs.py
-fi
-
 for path in "${dev_only_paths[@]}"; do
   [[ -z "$path" ]] && continue
   rm -rf -- "$path"

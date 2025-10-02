@@ -26,18 +26,16 @@ jobs:
       - name: Packaging smoke test
         run: bash .github/workflows/beta_yay_smoke.sh
 
-      - name: Prune development assets and rewrite docs
+      - name: Prune development assets
         if: always()
         run: |
           set -euo pipefail
-
-          chmod +x .github/scripts/prepare_release_docs.py
-          python3 .github/scripts/prepare_release_docs.py
 
           to_remove=(
             tests
             scripts/run-tests.sh
             scripts/sync-development.sh
+            docs/developer
           )
           for path in "${to_remove[@]}"; do
             if [ -e "$path" ] || git ls-files --error-unmatch "$path" >/dev/null 2>&1; then
